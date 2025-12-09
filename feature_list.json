@@ -842,6 +842,6 @@
       "Step 5: Verify frontend accessible at localhost:5173",
       "Step 6: Verify backend accessible at localhost:3001"
     ],
-    "passes": false
+    "passes": true
   }
 ]
