@@ -140,7 +140,7 @@
       "Step 4: Search for functions named 'generate' followed by 'mock' or 'fake'",
       "Step 5: Verify no matches found for any of the above searches"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -186,7 +186,7 @@
       "Step 4: Verify each event has required fields: id, sport, event_name, scraped_at",
       "Step 5: Verify events are from real scrape (data_source = 'real_scrape')"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -197,7 +197,7 @@
       "Step 3: Make GET request to /api/events?sport=tennis",
       "Step 4: Verify all returned events have sport='tennis'"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -209,7 +209,7 @@
       "Step 4: Verify response contains odds array",
       "Step 5: Verify odds have selection_name and back/lay odds"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -219,7 +219,7 @@
       "Step 2: Verify all returned events have is_live=true or status='live'",
       "Step 3: Verify response is an array (may be empty if no live events)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -275,7 +275,7 @@
       "Step 5: Verify response contains 'response_source' = 'claude_api'",
       "Step 6: Verify response is NOT a template/mock response"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -728,16 +728,16 @@
       "Step 4: Navigate through all main pages",
       "Step 5: Verify no errors accumulated"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
     "description": "Bet slip calculates potential return correctly",
     "steps": [
       "Step 1: Add selection with odds 3.00 to bet slip",
-      "Step 2: Enter stake of £10",
-      "Step 3: Verify potential return shows £30 (stake × odds)",
-      "Step 4: Verify profit shows £20 (return - stake)"
+      "Step 2: Enter stake of \u00c2\u00a310",
+      "Step 3: Verify potential return shows \u00c2\u00a330 (stake \u00c3\u2014 odds)",
+      "Step 4: Verify profit shows \u00c2\u00a320 (return - stake)"
     ],
     "passes": true
   },
@@ -746,8 +746,8 @@
     "description": "Lay bet liability calculated correctly",
     "steps": [
       "Step 1: Add lay selection with odds 3.00",
-      "Step 2: Enter stake of £10",
-      "Step 3: Verify liability shows £20 (stake × (odds - 1))",
+      "Step 2: Enter stake of \u00c2\u00a310",
+      "Step 3: Verify liability shows \u00c2\u00a320 (stake \u00c3\u2014 (odds - 1))",
       "Step 4: Verify potential profit matches stake"
     ],
     "passes": true
@@ -762,7 +762,7 @@
       "Step 4: Verify individual stakes can be entered",
       "Step 5: Verify remove button works for each"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",

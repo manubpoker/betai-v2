@@ -3,7 +3,7 @@ flask>=3.0.0
 flask-cors>=4.0.0
 
 # Database
-sqlite3  # Built into Python
+# sqlite3 is built into Python, no need to install
 
 # Scheduling
 APScheduler>=3.10.0
