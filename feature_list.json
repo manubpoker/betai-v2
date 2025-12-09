@@ -489,7 +489,7 @@
       "Step 4: Send follow-up: 'What did I say I was interested in?'",
       "Step 5: Verify response references tennis (context maintained)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -706,7 +706,7 @@
       "Step 2: Verify error message uses #EF4444 (error red)",
       "Step 3: Verify error is clearly visible"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -716,7 +716,7 @@
       "Step 2: Verify success message uses #22C55E (green)",
       "Step 3: Verify feedback is visible"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -807,7 +807,7 @@
       "Step 3: Verify consistent padding in cards/panels",
       "Step 4: Take screenshots for comparison"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
