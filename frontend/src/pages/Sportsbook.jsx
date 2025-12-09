@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const API_BASE = 'http://localhost:3001'
+const API_BASE = ''
 
 export default function Sportsbook() {
   const [sports, setSports] = useState([])
@@ -16,7 +16,7 @@ export default function Sportsbook() {
         const data = await res.json()
         setSports(data)
         if (data.length > 0) {
-          setSelectedSport(data[0].name)
+          setSelectedSport(data[0].name || data[0].sport)
         }
       } catch (err) {
         console.error('Error fetching sports:', err)
@@ -50,15 +50,15 @@ export default function Sportsbook() {
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
         {sports.map((sport) => (
           <button
-            key={sport.name}
-            onClick={() => setSelectedSport(sport.name)}
+            key={sport.name || sport.sport}
+            onClick={() => setSelectedSport(sport.name || sport.sport)}
             className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-              selectedSport === sport.name
+              selectedSport === (sport.name || sport.sport)
                 ? 'bg-betfair-gold text-dark-navy'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
           >
-            {sport.name} ({sport.count})
+            {sport.name || sport.sport} ({sport.count})
           </button>
         ))}
       </div>

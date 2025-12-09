@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 
-const API_BASE = 'http://localhost:3001'
+const API_BASE = ''
 
 export default function AIChatPanel({ isOpen, onClose }) {
   const [messages, setMessages] = useState([])

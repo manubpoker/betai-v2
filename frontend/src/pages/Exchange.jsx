@@ -3,7 +3,7 @@ import SportsSidebar from '../components/SportsSidebar'
 import OddsGrid from '../components/OddsGrid'
 import BetSlip from '../components/BetSlip'
 
-const API_BASE = 'http://localhost:3001'
+const API_BASE = ''
 
 export default function Exchange() {
   const [sports, setSports] = useState([])
@@ -21,7 +21,7 @@ export default function Exchange() {
         const data = await res.json()
         setSports(data)
         if (data.length > 0 && !selectedSport) {
-          setSelectedSport(data[0].name)
+          setSelectedSport(data[0].name || data[0].sport)
         }
       } catch (err) {
         console.error('Error fetching sports:', err)
