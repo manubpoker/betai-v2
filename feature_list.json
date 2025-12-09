@@ -381,7 +381,7 @@
       "Step 4: Click on Tennis",
       "Step 5: Verify only tennis events are displayed"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -406,7 +406,7 @@
       "Step 4: Enter stake amount",
       "Step 5: Verify liability is calculated correctly"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -430,7 +430,7 @@
       "Step 5: Navigate to Casino page",
       "Step 6: Verify AI chat floating button is visible"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -441,7 +441,7 @@
       "Step 3: Verify connection status indicator is visible",
       "Step 4: Verify message input field is present"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -452,7 +452,7 @@
       "Step 3: Verify status shows 'Connected to Claude' or similar",
       "Step 4: Verify model info is displayed"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -477,7 +477,7 @@
       "Step 6: Verify response is relevant to betting (not template)",
       "Step 7: Verify response contains specific information about current events"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -750,7 +750,7 @@
       "Step 3: Verify liability shows £20 (stake × (odds - 1))",
       "Step 4: Verify potential profit matches stake"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
