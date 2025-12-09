@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
-
-const API_BASE = ''
+import { API_BASE } from '../config'
 
 export default function AIChatPanel({ isOpen, onClose, initialMessage = null, eventContext = null }) {
   const [messages, setMessages] = useState([])

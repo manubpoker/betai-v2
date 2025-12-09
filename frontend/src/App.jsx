@@ -6,8 +6,7 @@ import Casino from './pages/Casino'
 import Poker from './pages/Poker'
 import AIChatPanel from './components/AIChatPanel'
 import AIBetFeed from './components/AIBetFeed'
-
-const API_BASE = ''
+import { API_BASE } from './config'
 
 function App() {
   const [chatOpen, setChatOpen] = useState(false)

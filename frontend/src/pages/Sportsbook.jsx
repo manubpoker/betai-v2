@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-
-const API_BASE = ''
+import { API_BASE } from '../config'
 
 export default function Sportsbook() {
   const [sports, setSports] = useState([])

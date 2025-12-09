@@ -4,8 +4,7 @@ import OddsGrid from '../components/OddsGrid'
 import BetSlip from '../components/BetSlip'
 import AIChatPanel from '../components/AIChatPanel'
 import BetHistory from '../components/BetHistory'
-
-const API_BASE = ''
+import { API_BASE } from '../config'
 
 export default function Exchange() {
   const [sports, setSports] = useState([])
