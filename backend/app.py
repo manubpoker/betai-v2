@@ -176,6 +176,16 @@ def init_db():
 
 
 # ============================================================
+# HEALTH CHECK ENDPOINT (for Railway/deployment)
+# ============================================================
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Simple health check that returns immediately."""
+    return jsonify({"status": "healthy", "service": "betai-v2"})
+
+
+# ============================================================
 # VERIFICATION ENDPOINTS (CRITICAL - Create First!)
 # ============================================================
 
@@ -1071,9 +1081,10 @@ def scheduled_bet_check():
 # APP STARTUP
 # ============================================================
 
+# Always initialize database on module load (for gunicorn)
+init_db()
+
 if __name__ == '__main__':
-    # Initialize database
-    init_db()
 
     # Start scheduler for auto-refresh and bet checking
     scheduler.add_job(
