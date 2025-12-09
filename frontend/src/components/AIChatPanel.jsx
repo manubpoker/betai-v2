@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
 
 const API_BASE = ''
 
-export default function AIChatPanel({ isOpen, onClose }) {
+export default function AIChatPanel({ isOpen, onClose, initialMessage = null, eventContext = null }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [status, setStatus] = useState({ loading: true, connected: false, model: null })
   const [conversationId, setConversationId] = useState(null)
+  const [processedInitialMessage, setProcessedInitialMessage] = useState(null)
   const messagesEndRef = useRef(null)
 
   // Check AI status on mount
@@ -40,6 +42,64 @@ export default function AIChatPanel({ isOpen, onClose }) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Auto-send initial message when panel opens with one
+  useEffect(() => {
+    if (isOpen && initialMessage && status.connected && initialMessage !== processedInitialMessage) {
+      setProcessedInitialMessage(initialMessage)
+      // Start a new conversation for Match Intelligence
+      setMessages([])
+      setConversationId(null)
+      // Auto-send the message
+      sendMessageWithContext(initialMessage, eventContext)
+    }
+  }, [isOpen, initialMessage, status.connected])
+
+  // Send message with optional event context
+  const sendMessageWithContext = async (messageText, context = null) => {
+    if (!messageText.trim() || sending) return
+
+    setSending(true)
+
+    // Add user message to UI
+    setMessages(prev => [...prev, { role: 'user', content: messageText }])
+
+    try {
+      const res = await fetch(`${API_BASE}/api/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: messageText,
+          conversation_id: null, // New conversation for Match Intelligence
+          context: context, // Event context for the AI
+        }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: data.response,
+          model: data.model,
+          source: data.response_source,
+        }])
+        setConversationId(data.conversation_id)
+      } else {
+        setMessages(prev => [...prev, {
+          role: 'error',
+          content: data.error || 'AI service unavailable. Please check API key.',
+        }])
+      }
+    } catch (err) {
+      setMessages(prev => [...prev, {
+        role: 'error',
+        content: 'Failed to connect to AI service. Please try again.',
+      }])
+    } finally {
+      setSending(false)
+    }
+  }
 
   // Send message
   const sendMessage = async () => {
@@ -151,7 +211,7 @@ export default function AIChatPanel({ isOpen, onClose }) {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 h-[calc(100%-180px)]">
-          {messages.length === 0 ? (
+          {messages.length === 0 && !sending ? (
             <div className="text-center text-gray-400 py-8">
               <div className="text-4xl mb-4">🤖</div>
               <p className="font-medium">Hello! I'm BetAI</p>
@@ -181,7 +241,13 @@ export default function AIChatPanel({ isOpen, onClose }) {
                           : 'bg-gray-700 text-white'
                     }`}
                   >
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                    {msg.role === 'assistant' ? (
+                      <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:mt-2 prose-headings:mb-1 prose-code:bg-gray-800 prose-code:px-1 prose-code:rounded prose-pre:bg-gray-900 prose-pre:p-2">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    )}
                     {msg.model && (
                       <p className="text-xs text-gray-400 mt-2">
                         via {msg.model}
@@ -190,6 +256,23 @@ export default function AIChatPanel({ isOpen, onClose }) {
                   </div>
                 </div>
               ))}
+              {/* Searching indicator while AI is working */}
+              {sending && (
+                <div className="mr-8">
+                  <div className="rounded-lg p-3 bg-gray-700 text-white">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 animate-spin text-ai-accent" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      <span className="text-gray-300">Searching and analyzing...</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      Querying database, researching teams, calculating odds...
+                    </p>
+                  </div>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
           )}

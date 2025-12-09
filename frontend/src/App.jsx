@@ -1,13 +1,33 @@
 import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Exchange from './pages/Exchange'
 import Sportsbook from './pages/Sportsbook'
 import Casino from './pages/Casino'
 import Poker from './pages/Poker'
 import AIChatPanel from './components/AIChatPanel'
+import AIBetFeed from './components/AIBetFeed'
+
+const API_BASE = ''
 
 function App() {
   const [chatOpen, setChatOpen] = useState(false)
+  const [betFeedOpen, setBetFeedOpen] = useState(false)
+  const [betFeedRefresh, setBetFeedRefresh] = useState(0)
+  const [balance, setBalance] = useState(1000.00)
+
+  // Fetch balance on mount
+  useEffect(() => {
+    async function fetchBalance() {
+      try {
+        const res = await fetch(`${API_BASE}/api/balance`)
+        const data = await res.json()
+        setBalance(data.balance)
+      } catch (err) {
+        console.error('Error fetching balance:', err)
+      }
+    }
+    fetchBalance()
+  }, [])
 
   const navItems = [
     { path: '/', label: 'Exchange' },
@@ -31,6 +51,16 @@ function App() {
 
               {/* Navigation */}
               <nav className="flex space-x-1">
+                {/* AI Bet Feed button - to the left of Exchange */}
+                <button
+                  onClick={() => setBetFeedOpen(true)}
+                  className="px-4 py-2 rounded-lg font-medium transition-colors bg-ai-accent/20 text-ai-accent hover:bg-ai-accent/30 flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  AI Bet Feed
+                </button>
                 {navItems.map((item) => (
                   <NavLink
                     key={item.path}
@@ -48,9 +78,12 @@ function App() {
                 ))}
               </nav>
 
-              {/* Right section */}
+              {/* Right section - Balance */}
               <div className="flex items-center space-x-4">
-                <span className="text-gray-400 text-sm">Real Data from Betfair</span>
+                <div className="bg-gray-800 px-4 py-2 rounded-lg">
+                  <span className="text-gray-400 text-xs">Balance</span>
+                  <div className="text-betfair-gold font-bold">£{balance.toFixed(2)}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -91,6 +124,14 @@ function App() {
 
         {/* AI Chat Panel */}
         <AIChatPanel isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+
+        {/* AI Bet Feed Panel */}
+        <AIBetFeed
+          isOpen={betFeedOpen}
+          onClose={() => setBetFeedOpen(false)}
+          onRefresh={betFeedRefresh}
+          onBalanceChange={setBalance}
+        />
       </div>
     </Router>
   )

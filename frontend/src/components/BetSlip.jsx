@@ -1,10 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const API_BASE = ''
 
 export default function BetSlip({ bets, onRemove, onUpdateStake, onClear }) {
   const [placing, setPlacing] = useState(false)
   const [message, setMessage] = useState(null)
+  const [balance, setBalance] = useState(null)
+  const [loadingBalance, setLoadingBalance] = useState(true)
+
+  // Fetch balance on mount and after placing bets
+  const fetchBalance = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/balance`)
+      const data = await res.json()
+      setBalance(data.balance)
+    } catch (err) {
+      console.error('Error fetching balance:', err)
+    } finally {
+      setLoadingBalance(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchBalance()
+  }, [])
 
   // Calculate potential return for a bet
   const calculateReturn = (bet) => {
@@ -32,10 +51,26 @@ export default function BetSlip({ bets, onRemove, onUpdateStake, onClear }) {
   // Total potential return
   const totalReturn = bets.reduce((sum, bet) => sum + calculateReturn(bet), 0)
 
+  // Calculate total required (considering liability for lay bets)
+  const totalRequired = bets.reduce((sum, bet) => {
+    const stake = parseFloat(bet.stake) || 0
+    if (bet.type === 'back') {
+      return sum + stake
+    } else {
+      return sum + (stake * (bet.odds - 1)) // liability
+    }
+  }, 0)
+
   // Place bets
   const placeBets = async () => {
     if (bets.length === 0 || bets.some(b => !b.stake || parseFloat(b.stake) <= 0)) {
       setMessage({ type: 'error', text: 'Please enter stake for all selections' })
+      return
+    }
+
+    // Check balance before placing
+    if (balance !== null && totalRequired > balance) {
+      setMessage({ type: 'error', text: `Insufficient balance. Required: £${totalRequired.toFixed(2)}` })
       return
     }
 
@@ -44,7 +79,7 @@ export default function BetSlip({ bets, onRemove, onUpdateStake, onClear }) {
 
     try {
       for (const bet of bets) {
-        await fetch(`${API_BASE}/api/bets`, {
+        const res = await fetch(`${API_BASE}/api/bets`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -55,12 +90,19 @@ export default function BetSlip({ bets, onRemove, onUpdateStake, onClear }) {
             stake: parseFloat(bet.stake),
           }),
         })
+
+        const data = await res.json()
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to place bet')
+        }
       }
 
       setMessage({ type: 'success', text: 'Bets placed successfully!' })
+      fetchBalance() // Refresh balance after placing bets
       onClear()
     } catch (err) {
-      setMessage({ type: 'error', text: 'Failed to place bets. Please try again.' })
+      setMessage({ type: 'error', text: err.message || 'Failed to place bets. Please try again.' })
+      fetchBalance() // Refresh balance to show current state
     } finally {
       setPlacing(false)
     }
@@ -68,6 +110,20 @@ export default function BetSlip({ bets, onRemove, onUpdateStake, onClear }) {
 
   return (
     <div className="bg-gray-800 rounded-lg overflow-hidden sticky top-4">
+      {/* Balance Display */}
+      <div className="bg-gray-900 px-4 py-3 border-b border-gray-700">
+        <div className="flex items-center justify-between">
+          <span className="text-gray-400 text-sm">Balance</span>
+          {loadingBalance ? (
+            <span className="text-gray-500 text-sm">Loading...</span>
+          ) : (
+            <span className="text-success font-bold text-lg">
+              £{balance !== null ? balance.toFixed(2) : '0.00'}
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Header */}
       <div className="bg-betfair-gold px-4 py-3 flex items-center justify-between">
         <h2 className="font-bold text-dark-navy">Bet Slip</h2>
