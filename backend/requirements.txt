@@ -2,6 +2,9 @@
 flask>=3.0.0
 flask-cors>=4.0.0
 
+# Production server
+gunicorn>=21.0.0
+
 # Database
 # sqlite3 is built into Python, no need to install
 

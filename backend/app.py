@@ -12,8 +12,13 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 # Create Flask app
 app = Flask(__name__)
-# Allow any localhost port for dev (Vite uses dynamic ports when default is taken)
-CORS(app, origins=["http://localhost:*", "http://127.0.0.1:*"], supports_credentials=True)
+# CORS configuration - allow localhost for dev and production domains
+CORS(app, origins=[
+    "http://localhost:*",
+    "http://127.0.0.1:*",
+    "https://*.vercel.app",
+    "https://betai-v2.vercel.app"
+], supports_credentials=True)
 CORS(app)  # Allow all origins in development
 
 # Configuration
@@ -1102,5 +1107,6 @@ if __name__ == '__main__':
         print(f"Initial scrape skipped: {e}")
 
     # Start Flask server
-    print("Starting BetAI v2 backend on port 3001...")
-    app.run(host='0.0.0.0', port=3001, debug=True, use_reloader=False)
+    port = int(os.environ.get('PORT', 3001))
+    print(f"Starting BetAI v2 backend on port {port}...")
+    app.run(host='0.0.0.0', port=port, debug=True, use_reloader=False)
