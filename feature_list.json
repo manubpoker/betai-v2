@@ -640,7 +640,7 @@
       "Step 5: Verify odds are readable",
       "Step 6: Take screenshot for visual verification"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -686,7 +686,7 @@
       "Step 4: Click close button",
       "Step 5: Verify smooth slide out"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
