@@ -1,0 +1,19 @@
+# Flask web framework
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# Database
+sqlite3  # Built into Python
+
+# Scheduling
+APScheduler>=3.10.0
+
+# Web scraping
+playwright>=1.40.0
+
+# Claude AI
+anthropic>=0.18.0
+
+# Utilities
+python-dateutil>=2.8.2
+requests>=2.31.0

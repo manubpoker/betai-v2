@@ -1,0 +1,847 @@
+[
+  {
+    "category": "functional",
+    "description": "Verification endpoint /api/verify/scrape-source returns source='real_scrape' confirming no mock data",
+    "steps": [
+      "Step 1: Start the backend server on port 3001",
+      "Step 2: Make GET request to /api/verify/scrape-source",
+      "Step 3: Verify response contains 'source' field with value 'real_scrape'",
+      "Step 4: Verify response contains 'scrape_age_minutes' field with numeric value",
+      "Step 5: Verify response contains 'sample_event' object with event details",
+      "Step 6: Verify sample_event contains 'source_url' starting with 'https://www.betfair.com'",
+      "Step 7: Verify sample_event contains 'scraped_at' timestamp",
+      "Step 8: Verify scrape_age_minutes is less than 30"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Verification endpoint /api/verify/ai-status returns connected status with Claude model",
+    "steps": [
+      "Step 1: Start the backend server on port 3001",
+      "Step 2: Ensure ANTHROPIC_API_KEY environment variable is set",
+      "Step 3: Make GET request to /api/verify/ai-status",
+      "Step 4: Verify response contains 'status' field with value 'connected'",
+      "Step 5: Verify response contains 'model' field starting with 'claude-'",
+      "Step 6: Verify response contains 'api_key_present' field with value true"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Verification endpoint /api/verify/data-freshness confirms data is recent",
+    "steps": [
+      "Step 1: Start the backend server on port 3001",
+      "Step 2: Trigger a scrape to ensure fresh data",
+      "Step 3: Make GET request to /api/verify/data-freshness",
+      "Step 4: Verify response contains 'is_fresh' field with value true",
+      "Step 5: Verify response contains 'newest_event_age_minutes' less than 30",
+      "Step 6: Verify response contains 'events_total' greater than 0"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "AI status endpoint returns error when API key is missing",
+    "steps": [
+      "Step 1: Start backend server WITHOUT ANTHROPIC_API_KEY environment variable",
+      "Step 2: Make GET request to /api/verify/ai-status",
+      "Step 3: Verify response contains 'status' field with value 'error' or 'disconnected'",
+      "Step 4: Verify response contains 'api_key_present' field with value false"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Scraper extracts real football data from Betfair using Playwright",
+    "steps": [
+      "Step 1: Ensure Playwright is installed with Chromium browser",
+      "Step 2: Trigger scrape for football sport",
+      "Step 3: Verify scraper navigates to https://www.betfair.com/sport/football",
+      "Step 4: Verify scraper dismisses cookie consent popup",
+      "Step 5: Verify scraper uses page.evaluate() for DOM extraction",
+      "Step 6: Verify extracted events have 'scraped_at' timestamp",
+      "Step 7: Verify extracted events have 'source_url' field",
+      "Step 8: Verify database records have 'data_source' = 'real_scrape'",
+      "Step 9: Verify at least 1 event is extracted",
+      "Step 10: Verify odds are in correct decimal format"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Scraper extracts real tennis data from Betfair using Playwright",
+    "steps": [
+      "Step 1: Ensure Playwright is installed with Chromium browser",
+      "Step 2: Trigger scrape for tennis sport",
+      "Step 3: Verify scraper navigates to https://www.betfair.com/sport/tennis",
+      "Step 4: Verify scraper dismisses cookie consent popup",
+      "Step 5: Verify scraper uses page.evaluate() for DOM extraction",
+      "Step 6: Verify extracted events have player names",
+      "Step 7: Verify extracted events have 'scraped_at' timestamp",
+      "Step 8: Verify extracted events have 'source_url' field",
+      "Step 9: Verify database records have 'data_source' = 'real_scrape'",
+      "Step 10: Verify odds are extracted in fractional and decimal formats"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Scraper extracts real horse racing data from Betfair using Playwright",
+    "steps": [
+      "Step 1: Trigger scrape for horse racing sport",
+      "Step 2: Verify scraper navigates to https://www.betfair.com/sport/horse-racing",
+      "Step 3: Verify extracted events have race times",
+      "Step 4: Verify extracted events have runner names",
+      "Step 5: Verify database records have 'data_source' = 'real_scrape'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Scraper extracts real basketball data from Betfair using Playwright",
+    "steps": [
+      "Step 1: Trigger scrape for basketball sport",
+      "Step 2: Verify scraper navigates to https://www.betfair.com/sport/basketball",
+      "Step 3: Verify extracted events have team names",
+      "Step 4: Verify database records have 'data_source' = 'real_scrape'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Scraper extracts real golf data from Betfair using Playwright",
+    "steps": [
+      "Step 1: Trigger scrape for golf sport",
+      "Step 2: Verify scraper navigates to https://www.betfair.com/sport/golf",
+      "Step 3: Verify extracted events have player/tournament info",
+      "Step 4: Verify database records have 'data_source' = 'real_scrape'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Scraper extracts real cricket data from Betfair using Playwright",
+    "steps": [
+      "Step 1: Trigger scrape for cricket sport",
+      "Step 2: Verify scraper navigates to https://www.betfair.com/sport/cricket",
+      "Step 3: Verify extracted events have team names",
+      "Step 4: Verify database records have 'data_source' = 'real_scrape'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "No mock data generation code exists in scraper files",
+    "steps": [
+      "Step 1: Search all Python files in backend/scraper for 'mock'",
+      "Step 2: Search all Python files in backend/scraper for 'fake'",
+      "Step 3: Search all Python files in backend/scraper for 'random'",
+      "Step 4: Search for functions named 'generate' followed by 'mock' or 'fake'",
+      "Step 5: Verify no matches found for any of the above searches"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Manual scrape trigger endpoint works correctly",
+    "steps": [
+      "Step 1: Make POST request to /api/scrape/trigger",
+      "Step 2: Verify response indicates scrape started or completed",
+      "Step 3: Verify new data appears in database with recent timestamps",
+      "Step 4: Verify scraped data has 'data_source' = 'real_scrape'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Scraper status endpoint returns current scraper state",
+    "steps": [
+      "Step 1: Make GET request to /api/scrape/status",
+      "Step 2: Verify response contains 'status' field (idle/running/error)",
+      "Step 3: Verify response contains 'last_scrape' timestamp",
+      "Step 4: Verify response contains 'events_count' per sport"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "APScheduler runs auto-refresh every 15 minutes",
+    "steps": [
+      "Step 1: Start backend server",
+      "Step 2: Verify APScheduler is configured with 15-minute interval",
+      "Step 3: Check scheduler job list contains scrape job",
+      "Step 4: Verify initial scrape runs on startup",
+      "Step 5: Verify data freshness after waiting (or by checking scheduler)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Events API returns list of all scraped events",
+    "steps": [
+      "Step 1: Ensure database has scraped events",
+      "Step 2: Make GET request to /api/events",
+      "Step 3: Verify response is an array of event objects",
+      "Step 4: Verify each event has required fields: id, sport, event_name, scraped_at",
+      "Step 5: Verify events are from real scrape (data_source = 'real_scrape')"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Events API filters by sport parameter",
+    "steps": [
+      "Step 1: Make GET request to /api/events?sport=football",
+      "Step 2: Verify all returned events have sport='football'",
+      "Step 3: Make GET request to /api/events?sport=tennis",
+      "Step 4: Verify all returned events have sport='tennis'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Single event API returns event with odds",
+    "steps": [
+      "Step 1: Get an event ID from /api/events",
+      "Step 2: Make GET request to /api/events/:id",
+      "Step 3: Verify response contains event details",
+      "Step 4: Verify response contains odds array",
+      "Step 5: Verify odds have selection_name and back/lay odds"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Live events API returns only live events",
+    "steps": [
+      "Step 1: Make GET request to /api/events/live",
+      "Step 2: Verify all returned events have is_live=true or status='live'",
+      "Step 3: Verify response is an array (may be empty if no live events)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Sports API returns list of sports with event counts",
+    "steps": [
+      "Step 1: Make GET request to /api/sports",
+      "Step 2: Verify response contains array of sport objects",
+      "Step 3: Verify each sport has 'name' and 'count' fields",
+      "Step 4: Verify counts match actual events in database"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Place bet API creates bet record",
+    "steps": [
+      "Step 1: Get a valid event_id and selection from /api/events",
+      "Step 2: Make POST request to /api/bets with bet details",
+      "Step 3: Verify response contains created bet with id",
+      "Step 4: Verify bet appears in /api/bets endpoint"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Bet history API returns user bets",
+    "steps": [
+      "Step 1: Create a bet via /api/bets POST",
+      "Step 2: Make GET request to /api/bets",
+      "Step 3: Verify response contains the created bet",
+      "Step 4: Verify bet has all required fields: stake, odds, status, created_at"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Open bets API returns only open bets",
+    "steps": [
+      "Step 1: Create a bet with status 'open'",
+      "Step 2: Make GET request to /api/bets/open",
+      "Step 3: Verify all returned bets have status='open'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "AI chat endpoint sends message to Claude and returns real response",
+    "steps": [
+      "Step 1: Ensure ANTHROPIC_API_KEY is set",
+      "Step 2: Make POST request to /api/ai/chat with message",
+      "Step 3: Verify response contains 'response' field with AI-generated content",
+      "Step 4: Verify response contains 'model' field starting with 'claude-'",
+      "Step 5: Verify response contains 'response_source' = 'claude_api'",
+      "Step 6: Verify response is NOT a template/mock response"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "AI chat returns error when API key is missing - no fallback",
+    "steps": [
+      "Step 1: Remove or unset ANTHROPIC_API_KEY",
+      "Step 2: Make POST request to /api/ai/chat with message",
+      "Step 3: Verify response is HTTP 500 or error status",
+      "Step 4: Verify error message indicates API unavailable",
+      "Step 5: Verify NO template or mock response is returned"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "AI conversations list endpoint returns conversation history",
+    "steps": [
+      "Step 1: Create a conversation via /api/ai/chat",
+      "Step 2: Make GET request to /api/ai/conversations",
+      "Step 3: Verify response contains list of conversations",
+      "Step 4: Verify each conversation has id and created_at"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "AI conversation detail endpoint returns full message history",
+    "steps": [
+      "Step 1: Get conversation id from /api/ai/conversations",
+      "Step 2: Make GET request to /api/ai/conversations/:id",
+      "Step 3: Verify response contains messages array",
+      "Step 4: Verify messages have role, content, created_at",
+      "Step 5: Verify assistant messages have model_used and response_source='claude_api'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Database schema includes all required tables",
+    "steps": [
+      "Step 1: Connect to SQLite database",
+      "Step 2: Verify scraped_events table exists with correct columns",
+      "Step 3: Verify scraped_odds table exists with correct columns",
+      "Step 4: Verify user_bets table exists with correct columns",
+      "Step 5: Verify ai_conversations table exists with correct columns",
+      "Step 6: Verify ai_messages table exists with correct columns",
+      "Step 7: Verify scraped_events.data_source column exists"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Database has data_source column always set to real_scrape",
+    "steps": [
+      "Step 1: Query all records from scraped_events",
+      "Step 2: Verify every record has data_source='real_scrape'",
+      "Step 3: Verify no records have data_source='mock' or null"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Fractional odds are correctly converted to decimal",
+    "steps": [
+      "Step 1: Find odds with fractional format (e.g., '5/1')",
+      "Step 2: Verify decimal conversion is correct (5/1 = 6.00)",
+      "Step 3: Verify '1/4' converts to 1.25",
+      "Step 4: Verify 'EVS' or '1/1' converts to 2.00"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Frontend loads and displays Exchange page",
+    "steps": [
+      "Step 1: Navigate to frontend URL (localhost:5173)",
+      "Step 2: Click on Exchange navigation item",
+      "Step 3: Verify Exchange page loads with sports sidebar",
+      "Step 4: Verify odds grid is visible",
+      "Step 5: Verify 'Last updated' timestamp is displayed"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Exchange page displays real scraped events",
+    "steps": [
+      "Step 1: Navigate to Exchange page",
+      "Step 2: Verify events are displayed (not empty state)",
+      "Step 3: Verify event names match real Betfair events",
+      "Step 4: Verify odds are displayed in back/lay columns",
+      "Step 5: Verify 'Last updated' time is recent (< 30 minutes)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Exchange page sports navigation filters events",
+    "steps": [
+      "Step 1: Navigate to Exchange page",
+      "Step 2: Click on Football in sports sidebar",
+      "Step 3: Verify only football events are displayed",
+      "Step 4: Click on Tennis",
+      "Step 5: Verify only tennis events are displayed"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Exchange page back bet selection adds to bet slip",
+    "steps": [
+      "Step 1: Navigate to Exchange page",
+      "Step 2: Click on a back odds button (blue)",
+      "Step 3: Verify bet slip appears/updates on right side",
+      "Step 4: Verify selection name and odds appear in bet slip",
+      "Step 5: Enter stake amount",
+      "Step 6: Verify potential return is calculated"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Exchange page lay bet selection adds to bet slip",
+    "steps": [
+      "Step 1: Navigate to Exchange page",
+      "Step 2: Click on a lay odds button (pink)",
+      "Step 3: Verify bet slip shows lay bet type",
+      "Step 4: Enter stake amount",
+      "Step 5: Verify liability is calculated correctly"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Sportsbook page loads and displays events",
+    "steps": [
+      "Step 1: Navigate to Sportsbook page",
+      "Step 2: Verify single price display (no back/lay)",
+      "Step 3: Verify sports categories are visible",
+      "Step 4: Verify events are displayed with odds"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "AI Chat floating button appears on all pages",
+    "steps": [
+      "Step 1: Navigate to Exchange page",
+      "Step 2: Verify AI chat floating button is visible",
+      "Step 3: Navigate to Sportsbook page",
+      "Step 4: Verify AI chat floating button is still visible",
+      "Step 5: Navigate to Casino page",
+      "Step 6: Verify AI chat floating button is visible"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "AI Chat panel opens when floating button clicked",
+    "steps": [
+      "Step 1: Click AI chat floating button",
+      "Step 2: Verify chat panel slides in from right",
+      "Step 3: Verify connection status indicator is visible",
+      "Step 4: Verify message input field is present"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "AI Chat shows connected status when API is available",
+    "steps": [
+      "Step 1: Ensure ANTHROPIC_API_KEY is set",
+      "Step 2: Open AI chat panel",
+      "Step 3: Verify status shows 'Connected to Claude' or similar",
+      "Step 4: Verify model info is displayed"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "AI Chat shows error state when API unavailable",
+    "steps": [
+      "Step 1: Remove ANTHROPIC_API_KEY",
+      "Step 2: Open AI chat panel",
+      "Step 3: Verify status shows 'AI Unavailable' or error state",
+      "Step 4: Verify error is clearly visible (not hidden)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "AI Chat sends message and displays real response",
+    "steps": [
+      "Step 1: Open AI chat panel",
+      "Step 2: Type message: 'What are the best football bets today?'",
+      "Step 3: Click send or press Enter",
+      "Step 4: Verify loading indicator appears",
+      "Step 5: Verify response appears from Claude",
+      "Step 6: Verify response is relevant to betting (not template)",
+      "Step 7: Verify response contains specific information about current events"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "AI Chat maintains conversation context",
+    "steps": [
+      "Step 1: Open AI chat panel",
+      "Step 2: Send message: 'I am interested in tennis betting'",
+      "Step 3: Wait for response",
+      "Step 4: Send follow-up: 'What did I say I was interested in?'",
+      "Step 5: Verify response references tennis (context maintained)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Casino page loads with game grid",
+    "steps": [
+      "Step 1: Navigate to Casino page",
+      "Step 2: Verify page loads without errors",
+      "Step 3: Verify game grid or placeholder content is visible"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Poker page loads with lobby interface",
+    "steps": [
+      "Step 1: Navigate to Poker page",
+      "Step 2: Verify page loads without errors",
+      "Step 3: Verify lobby interface or placeholder content is visible"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Live events display real-time indicator",
+    "steps": [
+      "Step 1: Navigate to Exchange page",
+      "Step 2: Look for events marked as live",
+      "Step 3: Verify live indicator badge/icon is visible",
+      "Step 4: Verify live events appear in /api/events/live"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Event odds update reflects recent scrape data",
+    "steps": [
+      "Step 1: View event odds on Exchange page",
+      "Step 2: Note the 'Last updated' timestamp",
+      "Step 3: Trigger manual scrape via API",
+      "Step 4: Refresh Exchange page",
+      "Step 5: Verify 'Last updated' timestamp is newer"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "CORS is properly configured for frontend-backend communication",
+    "steps": [
+      "Step 1: Frontend runs on port 5173",
+      "Step 2: Backend runs on port 3001",
+      "Step 3: Make API request from frontend",
+      "Step 4: Verify no CORS errors in browser console",
+      "Step 5: Verify response is received successfully"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "React Router navigates between pages without reload",
+    "steps": [
+      "Step 1: Navigate to Exchange page",
+      "Step 2: Click Sportsbook link",
+      "Step 3: Verify page changes without full reload",
+      "Step 4: Verify URL updates to /sportsbook",
+      "Step 5: Click browser back button",
+      "Step 6: Verify Exchange page shows"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Betfair Gold primary color is correctly applied",
+    "steps": [
+      "Step 1: Navigate to frontend",
+      "Step 2: Verify primary buttons/headers use #FFB80C color",
+      "Step 3: Take screenshot for visual verification"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Back bet buttons use correct blue color",
+    "steps": [
+      "Step 1: Navigate to Exchange page",
+      "Step 2: Verify back odds buttons are #72BBEF (blue)",
+      "Step 3: Take screenshot for visual verification"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Lay bet buttons use correct pink color",
+    "steps": [
+      "Step 1: Navigate to Exchange page",
+      "Step 2: Verify lay odds buttons are #FAA9BA (pink)",
+      "Step 3: Take screenshot for visual verification"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Dark Navy secondary color used for backgrounds",
+    "steps": [
+      "Step 1: Navigate to frontend",
+      "Step 2: Verify sidebar/dark sections use #1E1E2D color",
+      "Step 3: Take screenshot for visual verification"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "AI accent color (purple) used for chat elements",
+    "steps": [
+      "Step 1: Open AI chat panel",
+      "Step 2: Verify chat elements use #7C3AED purple accent",
+      "Step 3: Take screenshot for visual verification"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Inter font family is applied to body text",
+    "steps": [
+      "Step 1: Inspect body element styles",
+      "Step 2: Verify font-family includes 'Inter' or 'system-ui'",
+      "Step 3: Verify text renders with correct font"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Monospace font used for odds display",
+    "steps": [
+      "Step 1: Navigate to Exchange page",
+      "Step 2: Inspect odds number elements",
+      "Step 3: Verify font-family includes 'JetBrains Mono' or monospace fallback"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Responsive design works on mobile viewport",
+    "steps": [
+      "Step 1: Set browser viewport to 375x667 (iPhone)",
+      "Step 2: Navigate to Exchange page",
+      "Step 3: Verify content is not clipped or overlapping",
+      "Step 4: Verify navigation is usable (hamburger menu or similar)",
+      "Step 5: Verify odds are readable",
+      "Step 6: Take screenshot for visual verification"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Responsive design works on tablet viewport",
+    "steps": [
+      "Step 1: Set browser viewport to 768x1024 (iPad)",
+      "Step 2: Navigate to Exchange page",
+      "Step 3: Verify layout adjusts appropriately",
+      "Step 4: Verify sidebar behavior (collapsed or visible)",
+      "Step 5: Take screenshot for visual verification"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Exchange odds grid has proper alignment",
+    "steps": [
+      "Step 1: Navigate to Exchange page with multiple events",
+      "Step 2: Verify back and lay columns are aligned",
+      "Step 3: Verify odds numbers are right-aligned within cells",
+      "Step 4: Verify consistent spacing between rows"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Bet slip has clear visual separation",
+    "steps": [
+      "Step 1: Add a selection to bet slip",
+      "Step 2: Verify bet slip has distinct background",
+      "Step 3: Verify input fields are clearly visible",
+      "Step 4: Verify place bet button is prominent"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "AI chat panel has smooth slide animation",
+    "steps": [
+      "Step 1: Click AI chat floating button",
+      "Step 2: Observe panel opening animation",
+      "Step 3: Verify smooth slide from right",
+      "Step 4: Click close button",
+      "Step 5: Verify smooth slide out"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Loading states are visually indicated",
+    "steps": [
+      "Step 1: Trigger page load or data fetch",
+      "Step 2: Verify loading spinner or skeleton appears",
+      "Step 3: Verify loading state clears when complete"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Error states have red/warning styling",
+    "steps": [
+      "Step 1: Trigger an error (e.g., remove API key)",
+      "Step 2: Verify error message uses #EF4444 (error red)",
+      "Step 3: Verify error is clearly visible"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Success states use green color",
+    "steps": [
+      "Step 1: Complete a successful action (e.g., place bet)",
+      "Step 2: Verify success message uses #22C55E (green)",
+      "Step 3: Verify feedback is visible"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "No console errors on page load",
+    "steps": [
+      "Step 1: Open browser developer console",
+      "Step 2: Navigate to frontend home page",
+      "Step 3: Verify no JavaScript errors in console",
+      "Step 4: Navigate through all main pages",
+      "Step 5: Verify no errors accumulated"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Bet slip calculates potential return correctly",
+    "steps": [
+      "Step 1: Add selection with odds 3.00 to bet slip",
+      "Step 2: Enter stake of £10",
+      "Step 3: Verify potential return shows £30 (stake × odds)",
+      "Step 4: Verify profit shows £20 (return - stake)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Lay bet liability calculated correctly",
+    "steps": [
+      "Step 1: Add lay selection with odds 3.00",
+      "Step 2: Enter stake of £10",
+      "Step 3: Verify liability shows £20 (stake × (odds - 1))",
+      "Step 4: Verify potential profit matches stake"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Multiple selections can be added to bet slip",
+    "steps": [
+      "Step 1: Add first selection to bet slip",
+      "Step 2: Add second selection to bet slip",
+      "Step 3: Verify both appear in bet slip",
+      "Step 4: Verify individual stakes can be entered",
+      "Step 5: Verify remove button works for each"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Bet placement shows confirmation",
+    "steps": [
+      "Step 1: Add selection and enter stake",
+      "Step 2: Click place bet button",
+      "Step 3: Verify confirmation message appears",
+      "Step 4: Verify bet slip clears after placement"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "All sports show scraped event counts",
+    "steps": [
+      "Step 1: Navigate to Exchange page",
+      "Step 2: View sports sidebar",
+      "Step 3: Verify each sport shows event count",
+      "Step 4: Verify counts are greater than 0 for scraped sports",
+      "Step 5: Verify clicking sport filters to those events"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Navigation highlights current page",
+    "steps": [
+      "Step 1: Navigate to Exchange page",
+      "Step 2: Verify Exchange nav item is highlighted/active",
+      "Step 3: Navigate to Sportsbook",
+      "Step 4: Verify Sportsbook nav item is now highlighted"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Consistent spacing and padding throughout",
+    "steps": [
+      "Step 1: Navigate through all pages",
+      "Step 2: Verify consistent margins on main content",
+      "Step 3: Verify consistent padding in cards/panels",
+      "Step 4: Take screenshots for comparison"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Backend serves on port 3001 as specified",
+    "steps": [
+      "Step 1: Start backend server",
+      "Step 2: Verify server listens on port 3001",
+      "Step 3: Make request to http://localhost:3001/api/sports",
+      "Step 4: Verify response is received"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Frontend serves on port 5173 as specified",
+    "steps": [
+      "Step 1: Start frontend development server",
+      "Step 2: Verify server listens on port 5173",
+      "Step 3: Navigate to http://localhost:5173",
+      "Step 4: Verify frontend loads"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "init.sh script sets up environment correctly",
+    "steps": [
+      "Step 1: Run ./init.sh in project directory",
+      "Step 2: Verify dependencies are installed",
+      "Step 3: Verify database is initialized",
+      "Step 4: Verify servers start successfully",
+      "Step 5: Verify frontend accessible at localhost:5173",
+      "Step 6: Verify backend accessible at localhost:3001"
+    ],
+    "passes": false
+  }
+]

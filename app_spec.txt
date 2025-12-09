@@ -1,0 +1,512 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project_specification>
+  <project_name>BetAI v2 - AI-Powered Betting Platform (REAL DATA)</project_name>
+  <version>2.0</version>
+  <description>
+    A professional betting platform that scrapes REAL odds from Betfair and provides
+    AI-powered betting assistance using Claude. This is NOT a demo with mock data -
+    all data must come from actual Betfair pages.
+  </description>
+
+  <!-- ============================================================ -->
+  <!-- CRITICAL REQUIREMENTS - READ FIRST -->
+  <!-- ============================================================ -->
+
+  <critical_requirements>
+    <requirement id="REQ-001" priority="MANDATORY">
+      <title>Real Betfair Scraping - NO MOCK DATA</title>
+      <description>
+        The scraper MUST extract real data from Betfair pages using Playwright.
+        Mock data generation is STRICTLY PROHIBITED.
+      </description>
+      <implementation>
+        - Use Playwright (NOT Puppeteer) with headless Chromium
+        - Use page.evaluate() for JavaScript DOM extraction
+        - Handle cookie consent with multiple fallback selectors
+        - Store scraped_at timestamps with every record
+        - Store source_url for verification
+        - Database column data_source MUST always be "real_scrape"
+        - NEVER generate random/fake betting data
+        - NEVER create generateMock() or similar functions
+      </implementation>
+      <reference_implementation>
+        Copy the pattern from: C:\Users\manue\Desktop\Work\AI\tennis_bets\scraper.py
+        This working scraper shows exactly how to:
+        - Launch Playwright browser
+        - Handle cookie consent
+        - Extract data via page.evaluate()
+        - Convert fractional odds to decimal
+      </reference_implementation>
+      <verification>
+        /api/verify/scrape-source MUST return {"source": "real_scrape"}
+        grep for "mock" in scraper code MUST return no matches
+      </verification>
+    </requirement>
+
+    <requirement id="REQ-002" priority="MANDATORY">
+      <title>Required Claude API - NO FALLBACKS</title>
+      <description>
+        AI chat MUST use Claude API. Silent fallbacks are PROHIBITED.
+        If API unavailable, return error - never fake response.
+      </description>
+      <implementation>
+        - Use claude-opus-4-5-20251101 or claude-3-5-sonnet model
+        - API key from environment variable ANTHROPIC_API_KEY
+        - If API call fails, return HTTP 500 with error message
+        - NEVER return template/mock responses silently
+        - All responses MUST include "model" field with actual model ID
+        - All responses MUST include "response_source": "claude_api"
+        - UI MUST show "AI Unavailable" state when API fails
+      </implementation>
+      <verification>
+        /api/verify/ai-status MUST return {"status": "connected", "model": "claude-..."}
+        Removing API key MUST cause visible error, not fake response
+      </verification>
+    </requirement>
+
+    <requirement id="REQ-003" priority="MANDATORY">
+      <title>Verification Endpoints</title>
+      <description>
+        Create these endpoints FIRST, before other backend work.
+        They are used to verify the project isn't using mock data.
+      </description>
+      <endpoints>
+        <endpoint path="/api/verify/scrape-source" method="GET">
+          <response>
+            {
+              "source": "real_scrape",
+              "scrape_age_minutes": 5,
+              "total_events": 150,
+              "sample_event": {
+                "event_name": "Liverpool vs Man City",
+                "source_url": "https://www.betfair.com/sport/football/...",
+                "scraped_at": "2024-01-15T12:00:00Z"
+              }
+            }
+          </response>
+          <pass_criteria>
+            source === "real_scrape" AND scrape_age_minutes less than 30
+          </pass_criteria>
+        </endpoint>
+
+        <endpoint path="/api/verify/ai-status" method="GET">
+          <response>
+            {
+              "status": "connected",
+              "model": "claude-opus-4-5-20251101",
+              "api_key_present": true,
+              "last_successful_call": "2024-01-15T12:00:00Z"
+            }
+          </response>
+          <pass_criteria>
+            status === "connected" AND model starts with "claude-"
+          </pass_criteria>
+        </endpoint>
+
+        <endpoint path="/api/verify/data-freshness" method="GET">
+          <response>
+            {
+              "is_fresh": true,
+              "newest_event_age_minutes": 5,
+              "oldest_event_age_minutes": 25,
+              "events_total": 150
+            }
+          </response>
+          <pass_criteria>
+            is_fresh === true AND newest_event_age_minutes less than 30
+          </pass_criteria>
+        </endpoint>
+      </endpoints>
+    </requirement>
+  </critical_requirements>
+
+  <!-- ============================================================ -->
+  <!-- TECHNOLOGY STACK -->
+  <!-- ============================================================ -->
+
+  <technology_stack>
+    <scraping>
+      <library>playwright</library>
+      <browser>chromium (headless)</browser>
+      <language>Python</language>
+      <note>DO NOT USE PUPPETEER - Use Playwright for better DOM access</note>
+    </scraping>
+
+    <backend>
+      <language>Python 3.11+</language>
+      <framework>Flask</framework>
+      <database>SQLite</database>
+      <scheduler>APScheduler (15-minute auto-refresh)</scheduler>
+      <cors>flask-cors</cors>
+      <port>3001</port>
+    </backend>
+
+    <ai>
+      <provider>Anthropic Claude API</provider>
+      <model>claude-opus-4-5-20251101 (primary)</model>
+      <model_fallback>claude-3-5-sonnet-20241022</model_fallback>
+      <api_key_source>Environment variable ANTHROPIC_API_KEY</api_key_source>
+      <library>anthropic</library>
+    </ai>
+
+    <frontend>
+      <framework>React 18+</framework>
+      <build_tool>Vite</build_tool>
+      <styling>Tailwind CSS</styling>
+      <routing>React Router</routing>
+      <port>5173</port>
+    </frontend>
+  </technology_stack>
+
+  <!-- ============================================================ -->
+  <!-- SPORTS TO SCRAPE -->
+  <!-- ============================================================ -->
+
+  <sports>
+    <sport name="Football">
+      <url>https://www.betfair.com/sport/football</url>
+      <competitions>Premier League, La Liga, Serie A, Bundesliga, Ligue 1, Champions League</competitions>
+    </sport>
+    <sport name="Tennis">
+      <url>https://www.betfair.com/sport/tennis</url>
+      <competitions>ATP, WTA, Grand Slams, ITF</competitions>
+      <reference>Copy tennis extraction from tennis_bets/scraper.py</reference>
+    </sport>
+    <sport name="Horse Racing">
+      <url>https://www.betfair.com/sport/horse-racing</url>
+      <note>Extract race times, runner names, odds</note>
+    </sport>
+    <sport name="Basketball">
+      <url>https://www.betfair.com/sport/basketball</url>
+      <competitions>NBA, EuroLeague, NCAA</competitions>
+    </sport>
+    <sport name="Golf">
+      <url>https://www.betfair.com/sport/golf</url>
+      <competitions>PGA, European Tour, Majors</competitions>
+    </sport>
+    <sport name="Cricket">
+      <url>https://www.betfair.com/sport/cricket</url>
+      <competitions>Test, ODI, T20, IPL</competitions>
+    </sport>
+  </sports>
+
+  <!-- ============================================================ -->
+  <!-- DATABASE SCHEMA -->
+  <!-- ============================================================ -->
+
+  <database_schema>
+    <table name="scraped_events">
+      <column name="id" type="INTEGER PRIMARY KEY AUTOINCREMENT"/>
+      <column name="sport" type="TEXT NOT NULL"/>
+      <column name="competition" type="TEXT"/>
+      <column name="event_name" type="TEXT NOT NULL"/>
+      <column name="start_time" type="TEXT"/>
+      <column name="is_live" type="INTEGER DEFAULT 0"/>
+      <column name="status" type="TEXT DEFAULT 'upcoming'"/>
+      <column name="scraped_at" type="TEXT NOT NULL" comment="ISO timestamp when scraped"/>
+      <column name="source_url" type="TEXT NOT NULL" comment="Betfair URL this was scraped from"/>
+      <column name="data_source" type="TEXT DEFAULT 'real_scrape'" comment="MUST be real_scrape, never mock"/>
+    </table>
+
+    <table name="scraped_odds">
+      <column name="id" type="INTEGER PRIMARY KEY AUTOINCREMENT"/>
+      <column name="event_id" type="INTEGER REFERENCES scraped_events(id)"/>
+      <column name="selection_name" type="TEXT NOT NULL"/>
+      <column name="back_odds" type="REAL"/>
+      <column name="lay_odds" type="REAL"/>
+      <column name="back_odds_fractional" type="TEXT" comment="Original format from Betfair"/>
+      <column name="lay_odds_fractional" type="TEXT"/>
+      <column name="liquidity" type="REAL"/>
+      <column name="scraped_at" type="TEXT NOT NULL"/>
+    </table>
+
+    <table name="user_bets">
+      <column name="id" type="INTEGER PRIMARY KEY AUTOINCREMENT"/>
+      <column name="event_id" type="INTEGER REFERENCES scraped_events(id)"/>
+      <column name="selection_name" type="TEXT NOT NULL"/>
+      <column name="bet_type" type="TEXT NOT NULL" comment="back or lay"/>
+      <column name="odds" type="REAL NOT NULL"/>
+      <column name="stake" type="REAL NOT NULL"/>
+      <column name="potential_return" type="REAL"/>
+      <column name="status" type="TEXT DEFAULT 'open'"/>
+      <column name="created_at" type="TEXT NOT NULL"/>
+    </table>
+
+    <table name="ai_conversations">
+      <column name="id" type="INTEGER PRIMARY KEY AUTOINCREMENT"/>
+      <column name="created_at" type="TEXT NOT NULL"/>
+    </table>
+
+    <table name="ai_messages">
+      <column name="id" type="INTEGER PRIMARY KEY AUTOINCREMENT"/>
+      <column name="conversation_id" type="INTEGER REFERENCES ai_conversations(id)"/>
+      <column name="role" type="TEXT NOT NULL" comment="user or assistant"/>
+      <column name="content" type="TEXT NOT NULL"/>
+      <column name="model_used" type="TEXT" comment="Claude model ID, MUST be set for assistant messages"/>
+      <column name="response_source" type="TEXT DEFAULT 'claude_api'" comment="MUST be claude_api, never mock"/>
+      <column name="created_at" type="TEXT NOT NULL"/>
+    </table>
+  </database_schema>
+
+  <!-- ============================================================ -->
+  <!-- API ENDPOINTS -->
+  <!-- ============================================================ -->
+
+  <api_endpoints>
+    <category name="Verification (Create First!)">
+      <endpoint method="GET" path="/api/verify/scrape-source">Check if using real scrape data</endpoint>
+      <endpoint method="GET" path="/api/verify/ai-status">Check Claude API connection</endpoint>
+      <endpoint method="GET" path="/api/verify/data-freshness">Check data age</endpoint>
+    </category>
+
+    <category name="Scraping">
+      <endpoint method="POST" path="/api/scrape/trigger">Trigger manual scrape</endpoint>
+      <endpoint method="GET" path="/api/scrape/status">Get scraper status</endpoint>
+    </category>
+
+    <category name="Events">
+      <endpoint method="GET" path="/api/events">List all events (filterable by sport)</endpoint>
+      <endpoint method="GET" path="/api/events/:id">Get single event with odds</endpoint>
+      <endpoint method="GET" path="/api/events/live">Get live events only</endpoint>
+      <endpoint method="GET" path="/api/sports">List available sports with counts</endpoint>
+    </category>
+
+    <category name="Betting">
+      <endpoint method="POST" path="/api/bets">Place a bet</endpoint>
+      <endpoint method="GET" path="/api/bets">Get user's bet history</endpoint>
+      <endpoint method="GET" path="/api/bets/open">Get open bets</endpoint>
+    </category>
+
+    <category name="AI Chat">
+      <endpoint method="POST" path="/api/ai/chat">Send message to Claude</endpoint>
+      <endpoint method="GET" path="/api/ai/conversations">List conversations</endpoint>
+      <endpoint method="GET" path="/api/ai/conversations/:id">Get conversation history</endpoint>
+    </category>
+  </api_endpoints>
+
+  <!-- ============================================================ -->
+  <!-- SCRAPER IMPLEMENTATION -->
+  <!-- ============================================================ -->
+
+  <scraper_implementation>
+    <file path="backend/scraper/base_scraper.py">
+      <description>Base class with Playwright setup and cookie handling</description>
+      <code_pattern>
+```python
+from playwright.sync_api import sync_playwright, Page
+import time
+
+class BetfairBaseScraper:
+    def __init__(self):
+        self.browser = None
+        self.context = None
+
+    def launch(self):
+        playwright = sync_playwright().start()
+        self.browser = playwright.chromium.launch(headless=True)
+        self.context = self.browser.new_context(
+            viewport={"width": 1920, "height": 1080},
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        )
+        return self.context.new_page()
+
+    def dismiss_cookie_consent(self, page: Page):
+        selectors = [
+            'button#onetrust-accept-btn-handler',
+            'button[id*="accept"]',
+            'button:has-text("Accept")',
+            'button:has-text("Accept All")',
+        ]
+        for selector in selectors:
+            try:
+                btn = page.query_selector(selector)
+                if btn and btn.is_visible():
+                    btn.click(timeout=5000)
+                    time.sleep(1)
+                    return True
+            except:
+                pass
+        return False
+
+    def close(self):
+        if self.browser:
+            self.browser.close()
+```
+      </code_pattern>
+    </file>
+
+    <file path="backend/scraper/football_scraper.py">
+      <description>Football-specific scraper extending base</description>
+      <url>https://www.betfair.com/sport/football</url>
+      <extraction_pattern>
+        Use page.evaluate() to run JavaScript that:
+        1. Finds competition headers (a[href*="/c-"])
+        2. Finds match links (a[href*="/e-"])
+        3. Finds odds buttons (buttons with fractional odds format)
+        4. Associates odds with matches
+      </extraction_pattern>
+    </file>
+  </scraper_implementation>
+
+  <!-- ============================================================ -->
+  <!-- AI IMPLEMENTATION -->
+  <!-- ============================================================ -->
+
+  <ai_implementation>
+    <file path="backend/ai/claude_client.py">
+      <description>Claude API client - NO FALLBACKS</description>
+      <code_pattern>
+```python
+import anthropic
+import os
+
+class ClaudeClient:
+    def __init__(self):
+        self.api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not self.api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable required")
+
+        self.client = anthropic.Anthropic(api_key=self.api_key)
+        self.model = "claude-opus-4-5-20251101"
+
+    def chat(self, message: str, conversation_history: list = None) -> dict:
+        """
+        Send message to Claude API.
+        Raises exception on failure - NO FALLBACK TO MOCK.
+        """
+        messages = []
+        if conversation_history:
+            messages.extend(conversation_history)
+        messages.append({"role": "user", "content": message})
+
+        # NO try/except with fallback - let errors propagate
+        response = self.client.messages.create(
+            model=self.model,
+            max_tokens=2048,
+            system="You are a helpful betting assistant for BetAI platform.",
+            messages=messages
+        )
+
+        return {
+            "response": response.content[0].text,
+            "model": self.model,
+            "response_source": "claude_api"
+        }
+
+    def get_status(self) -> dict:
+        """Check API connection status."""
+        try:
+            self.client.messages.create(
+                model=self.model,
+                max_tokens=10,
+                messages=[{"role": "user", "content": "test"}]
+            )
+            return {"status": "connected", "model": self.model, "api_key_present": True}
+        except Exception as e:
+            return {"status": "error", "model": None, "api_key_present": bool(self.api_key), "error": str(e)}
+```
+      </code_pattern>
+    </file>
+  </ai_implementation>
+
+  <!-- ============================================================ -->
+  <!-- UI SECTIONS -->
+  <!-- ============================================================ -->
+
+  <ui_sections>
+    <section name="Exchange">
+      <description>Back/lay betting with live odds from Betfair</description>
+      <features>
+        - Sports navigation sidebar
+        - Odds grid with back (blue) and lay (pink) columns
+        - Bet slip on right side
+        - "Last updated" timestamp (must be recent)
+        - Live event indicators
+      </features>
+    </section>
+
+    <section name="Sportsbook">
+      <description>Fixed odds betting interface</description>
+      <features>
+        - Single price display (no back/lay)
+        - Accumulator support
+        - All sports categories
+      </features>
+    </section>
+
+    <section name="AI Chat">
+      <description>Claude-powered betting assistant</description>
+      <features>
+        - Floating chat button on all pages
+        - Slide-out panel from right
+        - Connection status indicator (shows "Connected to Claude" or error)
+        - Model info displayed
+        - Clear error state when API unavailable
+      </features>
+    </section>
+
+    <section name="Casino">
+      <description>Casino games grid (placeholder games OK)</description>
+    </section>
+
+    <section name="Poker">
+      <description>Poker lobby interface (placeholder OK)</description>
+    </section>
+  </ui_sections>
+
+  <!-- ============================================================ -->
+  <!-- DESIGN SYSTEM -->
+  <!-- ============================================================ -->
+
+  <design_system>
+    <colors>
+      <primary name="Betfair Gold">#FFB80C</primary>
+      <secondary name="Dark Navy">#1E1E2D</secondary>
+      <back_bet name="Back Blue">#72BBEF</back_bet>
+      <lay_bet name="Lay Pink">#FAA9BA</lay_bet>
+      <success>#22C55E</success>
+      <error>#EF4444</error>
+      <ai_accent>#7C3AED</ai_accent>
+    </colors>
+
+    <typography>
+      <font_family>Inter, system-ui, sans-serif</font_family>
+      <font_mono>JetBrains Mono, monospace (for odds)</font_mono>
+    </typography>
+  </design_system>
+
+  <!-- ============================================================ -->
+  <!-- SUCCESS CRITERIA -->
+  <!-- ============================================================ -->
+
+  <success_criteria>
+    <criterion priority="CRITICAL">
+      /api/verify/scrape-source returns source="real_scrape" with fresh data
+    </criterion>
+    <criterion priority="CRITICAL">
+      /api/verify/ai-status returns status="connected" with Claude model
+    </criterion>
+    <criterion priority="CRITICAL">
+      No mock/fake data generation code exists in scraper
+    </criterion>
+    <criterion priority="CRITICAL">
+      AI chat shows clear error when API key removed, not template response
+    </criterion>
+    <criterion priority="HIGH">
+      All 6 sports have real scraped data from Betfair
+    </criterion>
+    <criterion priority="HIGH">
+      Auto-refresh runs every 15 minutes via APScheduler
+    </criterion>
+    <criterion priority="HIGH">
+      UI shows "Last updated" timestamps that are accurate
+    </criterion>
+    <criterion priority="MEDIUM">
+      Responsive design works on mobile/tablet
+    </criterion>
+    <criterion priority="MEDIUM">
+      Zero console errors in browser
+    </criterion>
+  </success_criteria>
+
+</project_specification>
