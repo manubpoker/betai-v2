@@ -652,7 +652,7 @@
       "Step 4: Verify sidebar behavior (collapsed or visible)",
       "Step 5: Take screenshot for visual verification"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -663,7 +663,7 @@
       "Step 3: Verify odds numbers are right-aligned within cells",
       "Step 4: Verify consistent spacing between rows"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -674,7 +674,7 @@
       "Step 3: Verify input fields are clearly visible",
       "Step 4: Verify place bet button is prominent"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
