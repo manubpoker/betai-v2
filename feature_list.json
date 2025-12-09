@@ -417,7 +417,7 @@
       "Step 3: Verify sports categories are visible",
       "Step 4: Verify events are displayed with odds"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -499,7 +499,7 @@
       "Step 2: Verify page loads without errors",
       "Step 3: Verify game grid or placeholder content is visible"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -509,7 +509,7 @@
       "Step 2: Verify page loads without errors",
       "Step 3: Verify lobby interface or placeholder content is visible"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -557,7 +557,7 @@
       "Step 5: Click browser back button",
       "Step 6: Verify Exchange page shows"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
