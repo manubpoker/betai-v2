@@ -520,7 +520,7 @@
       "Step 3: Verify live indicator badge/icon is visible",
       "Step 4: Verify live events appear in /api/events/live"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
