@@ -162,7 +162,7 @@
       "Step 3: Verify response contains 'last_scrape' timestamp",
       "Step 4: Verify response contains 'events_count' per sport"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -241,7 +241,7 @@
       "Step 3: Verify response contains created bet with id",
       "Step 4: Verify bet appears in /api/bets endpoint"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -252,7 +252,7 @@
       "Step 3: Verify response contains the created bet",
       "Step 4: Verify bet has all required fields: stake, odds, status, created_at"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -262,7 +262,7 @@
       "Step 2: Make GET request to /api/bets/open",
       "Step 3: Verify all returned bets have status='open'"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -298,7 +298,7 @@
       "Step 3: Verify response contains list of conversations",
       "Step 4: Verify each conversation has id and created_at"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -310,7 +310,7 @@
       "Step 4: Verify messages have role, content, created_at",
       "Step 5: Verify assistant messages have model_used and response_source='claude_api'"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -324,7 +324,7 @@
       "Step 6: Verify ai_messages table exists with correct columns",
       "Step 7: Verify scraped_events.data_source column exists"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -334,7 +334,7 @@
       "Step 2: Verify every record has data_source='real_scrape'",
       "Step 3: Verify no records have data_source='mock' or null"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -773,7 +773,7 @@
       "Step 3: Verify confirmation message appears",
       "Step 4: Verify bet slip clears after placement"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
