@@ -796,7 +796,7 @@
       "Step 3: Navigate to Sportsbook",
       "Step 4: Verify Sportsbook nav item is now highlighted"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -829,7 +829,7 @@
       "Step 3: Navigate to http://localhost:5173",
       "Step 4: Verify frontend loads"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
