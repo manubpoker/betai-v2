@@ -66,7 +66,7 @@
       "Step 9: Verify at least 1 event is extracted",
       "Step 10: Verify odds are in correct decimal format"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -83,7 +83,7 @@
       "Step 9: Verify database records have 'data_source' = 'real_scrape'",
       "Step 10: Verify odds are extracted in fractional and decimal formats"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -106,7 +106,7 @@
       "Step 3: Verify extracted events have team names",
       "Step 4: Verify database records have 'data_source' = 'real_scrape'"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -128,7 +128,7 @@
       "Step 3: Verify extracted events have team names",
       "Step 4: Verify database records have 'data_source' = 'real_scrape'"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -151,7 +151,7 @@
       "Step 3: Verify new data appears in database with recent timestamps",
       "Step 4: Verify scraped data has 'data_source' = 'real_scrape'"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -174,7 +174,7 @@
       "Step 4: Verify initial scrape runs on startup",
       "Step 5: Verify data freshness after waiting (or by checking scheduler)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -345,7 +345,7 @@
       "Step 3: Verify '1/4' converts to 1.25",
       "Step 4: Verify 'EVS' or '1/1' converts to 2.00"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -532,7 +532,7 @@
       "Step 4: Refresh Exchange page",
       "Step 5: Verify 'Last updated' timestamp is newer"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
