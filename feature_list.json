@@ -567,7 +567,7 @@
       "Step 2: Verify primary buttons/headers use #FFB80C color",
       "Step 3: Take screenshot for visual verification"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -577,7 +577,7 @@
       "Step 2: Verify back odds buttons are #72BBEF (blue)",
       "Step 3: Take screenshot for visual verification"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -587,7 +587,7 @@
       "Step 2: Verify lay odds buttons are #FAA9BA (pink)",
       "Step 3: Take screenshot for visual verification"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -597,7 +597,7 @@
       "Step 2: Verify sidebar/dark sections use #1E1E2D color",
       "Step 3: Take screenshot for visual verification"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -607,7 +607,7 @@
       "Step 2: Verify chat elements use #7C3AED purple accent",
       "Step 3: Take screenshot for visual verification"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -617,7 +617,7 @@
       "Step 2: Verify font-family includes 'Inter' or 'system-ui'",
       "Step 3: Verify text renders with correct font"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -627,7 +627,7 @@
       "Step 2: Inspect odds number elements",
       "Step 3: Verify font-family includes 'JetBrains Mono' or monospace fallback"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -696,7 +696,7 @@
       "Step 2: Verify loading spinner or skeleton appears",
       "Step 3: Verify loading state clears when complete"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
