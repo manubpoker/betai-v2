@@ -111,7 +111,7 @@ export default function AIChatPanel({ isOpen, onClose }) {
       {/* Panel */}
       <div
         className={`fixed top-0 right-0 h-full w-96 bg-gray-800 shadow-xl z-50
-                   chat-panel ${isOpen ? 'chat-panel-open' : 'chat-panel-closed'}`}
+                   chat-panel ${isOpen ? 'chat-panel-open' : 'chat-panel-closed pointer-events-none'}`}
       >
         {/* Header */}
         <div className="bg-ai-accent px-4 py-3 flex items-center justify-between">
