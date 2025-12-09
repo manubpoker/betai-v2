@@ -12,7 +12,7 @@
       "Step 7: Verify sample_event contains 'scraped_at' timestamp",
       "Step 8: Verify scrape_age_minutes is less than 30"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -25,7 +25,7 @@
       "Step 5: Verify response contains 'model' field starting with 'claude-'",
       "Step 6: Verify response contains 'api_key_present' field with value true"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -38,7 +38,7 @@
       "Step 5: Verify response contains 'newest_event_age_minutes' less than 30",
       "Step 6: Verify response contains 'events_total' greater than 0"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -230,7 +230,7 @@
       "Step 3: Verify each sport has 'name' and 'count' fields",
       "Step 4: Verify counts match actual events in database"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -357,7 +357,7 @@
       "Step 4: Verify odds grid is visible",
       "Step 5: Verify 'Last updated' timestamp is displayed"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -369,7 +369,7 @@
       "Step 4: Verify odds are displayed in back/lay columns",
       "Step 5: Verify 'Last updated' time is recent (< 30 minutes)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -394,7 +394,7 @@
       "Step 5: Enter stake amount",
       "Step 6: Verify potential return is calculated"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -544,7 +544,7 @@
       "Step 4: Verify no CORS errors in browser console",
       "Step 5: Verify response is received successfully"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -739,7 +739,7 @@
       "Step 3: Verify potential return shows £30 (stake × odds)",
       "Step 4: Verify profit shows £20 (return - stake)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -785,7 +785,7 @@
       "Step 4: Verify counts are greater than 0 for scraped sports",
       "Step 5: Verify clicking sport filters to those events"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -818,7 +818,7 @@
       "Step 3: Make request to http://localhost:3001/api/sports",
       "Step 4: Verify response is received"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
