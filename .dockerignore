@@ -1,0 +1,57 @@
+# flyctl launch added from .gitignore
+# Python
+**\__pycache__
+**\*.py[cod]
+**\*$py.class
+**\*.so
+**\.Python
+**\venv
+**\ENV
+**\env
+**\.venv
+
+# SQLite database
+**\*.db
+**\*.sqlite
+**\*.sqlite3
+
+# Node.js
+**\node_modules
+**\dist
+**\build
+**\.npm
+**\*.log
+
+# IDE
+**\.idea
+**\.vscode
+**\*.swp
+**\*.swo
+**\*~
+
+# OS
+**\.DS_Store
+**\Thumbs.db
+
+# Environment
+**\.env
+**\.env.local
+**\.env.*.local
+
+# Testing
+**\.coverage
+**\htmlcov
+**\.pytest_cache
+
+# Playwright
+**\playwright\.cache
+
+# Build outputs
+**\*.egg-info
+**\.eggs
+
+# Logs
+**\logs
+**\*.log
+**\npm-debug.log*
+fly.toml
