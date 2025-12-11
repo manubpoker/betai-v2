@@ -1,9 +1,6 @@
-import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import Exchange from './pages/Exchange'
-import Sportsbook from './pages/Sportsbook'
-import Casino from './pages/Casino'
-import Poker from './pages/Poker'
 import AIChatPanel from './components/AIChatPanel'
 import AIBetFeed from './components/AIBetFeed'
 import { API_BASE } from './config'
@@ -28,13 +25,6 @@ function App() {
     fetchBalance()
   }, [])
 
-  const navItems = [
-    { path: '/', label: 'Exchange' },
-    { path: '/sportsbook', label: 'Sportsbook' },
-    { path: '/casino', label: 'Casino' },
-    { path: '/poker', label: 'Poker' },
-  ]
-
   return (
     <Router>
       <div className="min-h-screen bg-dark-navy">
@@ -50,7 +40,7 @@ function App() {
 
               {/* Navigation */}
               <nav className="flex space-x-1">
-                {/* AI Bet Feed button - to the left of Exchange */}
+                {/* AI Bet Feed button */}
                 <button
                   onClick={() => setBetFeedOpen(true)}
                   className="px-4 py-2 rounded-lg font-medium transition-colors bg-ai-accent/20 text-ai-accent hover:bg-ai-accent/30 flex items-center gap-2"
@@ -60,21 +50,10 @@ function App() {
                   </svg>
                   AI Bet Feed
                 </button>
-                {navItems.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    className={({ isActive }) =>
-                      `px-4 py-2 rounded-lg font-medium transition-colors ${
-                        isActive
-                          ? 'bg-betfair-gold text-dark-navy'
-                          : 'text-gray-300 hover:bg-gray-700'
-                      }`
-                    }
-                  >
-                    {item.label}
-                  </NavLink>
-                ))}
+                {/* Exchange tab - always active */}
+                <span className="px-4 py-2 rounded-lg font-medium bg-betfair-gold text-dark-navy">
+                  Exchange
+                </span>
               </nav>
 
               {/* Right section - Balance */}
@@ -92,9 +71,7 @@ function App() {
         <main className="container mx-auto px-4 py-6">
           <Routes>
             <Route path="/" element={<Exchange balance={balance} onBalanceChange={setBalance} />} />
-            <Route path="/sportsbook" element={<Sportsbook />} />
-            <Route path="/casino" element={<Casino />} />
-            <Route path="/poker" element={<Poker />} />
+            <Route path="*" element={<Exchange balance={balance} onBalanceChange={setBalance} />} />
           </Routes>
         </main>
 

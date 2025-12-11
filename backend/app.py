@@ -329,46 +329,30 @@ scraper_status = {
 @app.route('/api/scrape/trigger', methods=['POST'])
 def trigger_scrape():
     """
-    Manually trigger a scrape.
-    Query param: data_type = 'sportsbook', 'exchange', or 'both' (default)
+    Manually trigger an exchange scrape.
     """
-    from scraper import run_full_scrape as run_sportsbook_scrape
     from exchange_scraper import run_exchange_scrape
-
-    data_type = request.args.get('data_type', 'both')
 
     try:
         scraper_status["status"] = "running"
-        results = {"sportsbook": None, "exchange": None}
         total = 0
 
-        # Run sportsbook scraper
-        if data_type in ('both', 'sportsbook'):
-            sb_result = run_sportsbook_scrape()
-            results["sportsbook"] = sb_result
-            if sb_result:
-                total += sb_result.get("total", 0)
-
-        # Run exchange scraper
-        if data_type in ('both', 'exchange'):
-            ex_result = run_exchange_scrape()
-            results["exchange"] = ex_result
-            if ex_result:
-                total += ex_result.get("total", 0)
+        # Run exchange scraper only
+        ex_result = run_exchange_scrape()
+        if ex_result:
+            total += ex_result.get("total", 0)
 
         scraper_status["status"] = "idle"
         scraper_status["last_scrape"] = datetime.utcnow().isoformat() + 'Z'
         scraper_status["events_count"] = {
-            "sportsbook": (results.get("sportsbook") or {}).get("counts", {}),
-            "exchange": (results.get("exchange") or {}).get("counts", {})
+            "exchange": (ex_result or {}).get("counts", {})
         }
 
         return jsonify({
             "success": True,
-            "message": f"Scrape completed ({data_type})",
+            "message": "Exchange scrape completed",
             "events_scraped": total,
-            "sportsbook": results.get("sportsbook"),
-            "exchange": results.get("exchange")
+            "exchange": ex_result
         })
     except Exception as e:
         scraper_status["status"] = "error"
@@ -1095,28 +1079,20 @@ def get_conversation(conv_id):
 # ============================================================
 
 def scheduled_scrape():
-    """Run both sportsbook and exchange scrapes on schedule."""
-    from scraper import run_full_scrape as run_sportsbook_scrape
+    """Run exchange scrape on schedule."""
     from exchange_scraper import run_exchange_scrape
 
-    print(f"[{datetime.utcnow().isoformat()}] Running scheduled scrape (both)...")
+    print(f"[{datetime.utcnow().isoformat()}] Running scheduled exchange scrape...")
     try:
         with app.app_context():
-            total = 0
-            # Run sportsbook scrape
-            sb_result = run_sportsbook_scrape()
-            total += sb_result.get('total', 0)
-            print(f"  Sportsbook: {sb_result.get('total', 0)} events")
-
-            # Run exchange scrape
+            # Run exchange scrape only
             ex_result = run_exchange_scrape()
-            total += ex_result.get('total', 0)
-            print(f"  Exchange: {ex_result.get('total', 0)} events")
+            total = ex_result.get('total', 0) if ex_result else 0
+            print(f"  Exchange: {total} events")
 
             scraper_status["last_scrape"] = datetime.utcnow().isoformat() + 'Z'
             scraper_status["events_count"] = {
-                "sportsbook": sb_result.get("counts", {}),
-                "exchange": ex_result.get("counts", {})
+                "exchange": (ex_result or {}).get("counts", {})
             }
             print(f"Scheduled scrape complete: {total} total events")
     except Exception as e:
@@ -1168,18 +1144,14 @@ def scheduled_bet_check():
 init_db()
 
 def run_initial_scrape_background():
-    """Run initial scrape in background thread so it doesn't block startup."""
+    """Run initial exchange scrape in background thread so it doesn't block startup."""
     import time
     import traceback
     time.sleep(5)  # Give the server a moment to fully start
-    print("Running initial scrape in background (both sportsbook and exchange)...", flush=True)
+    print("Running initial exchange scrape in background...", flush=True)
     try:
         with app.app_context():
-            from scraper import run_full_scrape as run_sportsbook_scrape
             from exchange_scraper import run_exchange_scrape
-
-            sb_result = run_sportsbook_scrape()
-            print(f"  Sportsbook: {(sb_result or {}).get('total', 0)} events", flush=True)
 
             ex_result = run_exchange_scrape()
             print(f"  Exchange: {(ex_result or {}).get('total', 0)} events", flush=True)
