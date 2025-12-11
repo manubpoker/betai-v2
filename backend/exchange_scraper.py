@@ -29,9 +29,10 @@ DATABASE = os.path.join(os.path.dirname(__file__), 'betai.db')
 # Sport configurations - using competition/coupon pages that show actual fixtures
 # The main sport pages (/football-betting-1) show outrights, not matches
 # Competition pages and "today's card" pages show actual fixtures
+# NOTE: Reduced to key competitions to avoid rate limiting on Fly.io
 SPORT_CONFIG = {
     "football": {
-        # Football competitions with match fixtures
+        # Football competitions with match fixtures - top leagues only
         "urls": [
             "https://www.betfair.com/exchange/plus/en/football/english-premier-league-betting-10932509",
             "https://www.betfair.com/exchange/plus/en/football/spanish-la-liga-betting-117",
@@ -39,40 +40,7 @@ SPORT_CONFIG = {
             "https://www.betfair.com/exchange/plus/en/football/italian-serie-a-betting-81",
             "https://www.betfair.com/exchange/plus/en/football/french-ligue-1-betting-55",
             "https://www.betfair.com/exchange/plus/en/football/uefa-champions-league-betting-228",
-            "https://www.betfair.com/exchange/plus/en/football/uefa-europa-league-betting-2005",
             "https://www.betfair.com/exchange/plus/en/football/english-championship-betting-7129730",
-            "https://www.betfair.com/exchange/plus/en/football/english-league-1-betting-35",
-            "https://www.betfair.com/exchange/plus/en/football/scottish-premiership-betting-105",
-            "https://www.betfair.com/exchange/plus/en/football/dutch-eredivisie-betting-9404054",
-            "https://www.betfair.com/exchange/plus/en/football/portuguese-primeira-liga-betting-99",
-            "https://www.betfair.com/exchange/plus/en/football/turkish-super-lig-betting-194215",
-            "https://www.betfair.com/exchange/plus/en/football/belgian-first-division-a-betting-89979",
-            "https://www.betfair.com/exchange/plus/en/football/brazilian-serie-a-betting-13",
-            "https://www.betfair.com/exchange/plus/en/football/argentine-primera-division-betting-67387",
-            "https://www.betfair.com/exchange/plus/en/football/mls-betting-141",
-        ],
-    },
-    "tennis": {
-        "urls": [
-            "https://www.betfair.com/exchange/plus/en/tennis/atp-betting-20603",
-            "https://www.betfair.com/exchange/plus/en/tennis/wta-betting-20604",
-            "https://www.betfair.com/exchange/plus/en/tennis/itf-men-betting-2087246",
-            "https://www.betfair.com/exchange/plus/en/tennis/itf-women-betting-2087247",
-        ],
-    },
-    "basketball": {
-        "urls": [
-            "https://www.betfair.com/exchange/plus/en/basketball/nba-betting-6004",
-            "https://www.betfair.com/exchange/plus/en/basketball/euroleague-betting-853",
-            "https://www.betfair.com/exchange/plus/en/basketball/ncaa-betting-136332",
-        ],
-    },
-    "cricket": {
-        "urls": [
-            "https://www.betfair.com/exchange/plus/en/cricket/international-twenty20-matches-betting-4657855",
-            "https://www.betfair.com/exchange/plus/en/cricket/test-matches-betting-4",
-            "https://www.betfair.com/exchange/plus/en/cricket/indian-premier-league-betting-11978179",
-            "https://www.betfair.com/exchange/plus/en/cricket/big-bash-betting-8565149",
         ],
     },
 }
@@ -145,20 +113,29 @@ def scrape_competition_page(page: Page, sport: str, url: str, competition: str, 
         print(f"    Scraping {competition}: {url}...", flush=True)
 
         try:
-            page.goto(url, wait_until="domcontentloaded", timeout=20000)
+            page.goto(url, wait_until="domcontentloaded", timeout=30000)
         except Exception as e:
             print(f"      Navigation error: {e}", flush=True)
             return events
 
-        time.sleep(3)  # Wait for JS rendering
+        # Wait longer for JS rendering on slower servers
+        time.sleep(5)
 
-        # Dismiss dialogs
-        dismiss_dialogs(page)
+        # Dismiss dialogs multiple times (they can re-appear)
+        for _ in range(3):
+            dismiss_dialogs(page)
+            time.sleep(0.5)
+
+        # Wait for event rows to appear
+        try:
+            page.wait_for_selector('.mod-event-line, a.mod-link', timeout=10000)
+        except:
+            print(f"      No event rows found after waiting", flush=True)
 
         # Scroll to load dynamic content
         for _ in range(3):
             page.keyboard.press("End")
-            time.sleep(0.8)
+            time.sleep(1)
 
         # Extract events - using correct Betfair Exchange selectors
         raw_events = page.evaluate("""
@@ -376,7 +353,7 @@ def scrape_sport_competitions(page: Page, sport: str, config: Dict) -> List[Dict
                 seen_urls.add(ev["source_url"])
                 all_events.append(ev)
 
-        time.sleep(1)  # Be nice to Betfair
+        time.sleep(3)  # Be nice to Betfair - avoid rate limiting
 
     print(f"  Total {sport} events: {len(all_events)}", flush=True)
     return all_events
