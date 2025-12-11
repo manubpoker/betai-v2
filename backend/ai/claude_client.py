@@ -37,7 +37,7 @@ class ClaudeClient:
             )
 
         self.client = anthropic.Anthropic(api_key=self.api_key)
-        self.model = "claude-sonnet-4-20250514"  # Primary model
+        self.model = "claude-opus-4-5-20251101"  # Primary model
         self.last_successful_call = None
 
         # Extended tools including web search and code interpreter

@@ -107,7 +107,7 @@ export default function AIBetFeed({ isOpen, onClose, onRefresh, onBalanceChange 
 
         {/* Subtitle */}
         <div className="px-4 py-2 bg-gray-900 border-b border-gray-700 text-xs text-gray-400">
-          <span className="text-ai-accent">Powered by Claude AI</span> • Back bets only
+          <span className="text-ai-accent">Powered by Opus 4.5</span> • Back bets only
           {generatedAt && (
             <span className="ml-2">
               • Updated: {new Date(generatedAt).toLocaleTimeString()}

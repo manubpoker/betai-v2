@@ -1019,17 +1019,29 @@ RESPOND IN THIS EXACT JSON FORMAT:
   ]
 }}
 
-IMPORTANT: reason must be 12 words or less. Be specific about why it's value."""
+IMPORTANT: reason must be 12 words or less. Be specific about why it's value.
+You MAY use web_search to research team form, injuries, or news to inform your analysis."""
+
+    # Web search tool for researching team form, injuries, news
+    web_search_tool = {
+        "type": "web_search_20250305",
+        "name": "web_search",
+        "max_uses": 5
+    }
 
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=2000,
+            model="claude-opus-4-5-20251101",
+            max_tokens=4000,
+            tools=[web_search_tool],
             messages=[{"role": "user", "content": prompt}]
         )
 
-        # Extract JSON from response
-        response_text = response.content[0].text
+        # Extract JSON from response - may be in text blocks after tool use
+        response_text = ""
+        for block in response.content:
+            if hasattr(block, 'text'):
+                response_text += block.text
 
         # Find JSON in response
         import re
@@ -1067,7 +1079,7 @@ IMPORTANT: reason must be 12 words or less. Be specific about why it's value."""
         return jsonify({
             "success": True,
             "recommendations_count": len(recs),
-            "model": "claude-sonnet-4-20250514",
+            "model": "claude-opus-4-5-20251101",
             "analyzed_at": timestamp
         })
 
@@ -1312,17 +1324,29 @@ RESPOND IN THIS EXACT JSON FORMAT:
   ]
 }}
 
-IMPORTANT: reason must be 12 words or less. Be specific about why it's value."""
+IMPORTANT: reason must be 12 words or less. Be specific about why it's value.
+You MAY use web_search to research team form, injuries, or news to inform your analysis."""
+
+    # Web search tool for researching team form, injuries, news
+    web_search_tool = {
+        "type": "web_search_20250305",
+        "name": "web_search",
+        "max_uses": 5
+    }
 
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=2000,
+            model="claude-opus-4-5-20251101",
+            max_tokens=4000,
+            tools=[web_search_tool],
             messages=[{"role": "user", "content": prompt}]
         )
 
-        # Extract JSON from response
-        response_text = response.content[0].text
+        # Extract JSON from response - may be in text blocks after tool use
+        response_text = ""
+        for block in response.content:
+            if hasattr(block, 'text'):
+                response_text += block.text
 
         # Find JSON in response
         import re
