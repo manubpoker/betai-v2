@@ -2,10 +2,10 @@
 BetAI v2 - Exchange Scraper Module
 
 Scrapes REAL exchange betting data from Betfair Exchange using Playwright.
-Exchange URLs: betfair.com/exchange/plus/en/{sport}-betting-1/{page}
+Uses "Today's Card" and competition pages to get actual match fixtures (not outrights).
 
 Features:
-- Scrapes ALL pages of events (pagination support)
+- Scrapes actual match fixtures from competition pages
 - Properly extracts competition names
 - Gets back/lay odds with decimal format
 - Organizes events by competition
@@ -26,31 +26,54 @@ from playwright.sync_api import sync_playwright, Page
 import os
 DATABASE = os.path.join(os.path.dirname(__file__), 'betai.db')
 
-# Sport configurations with base URLs and expected page counts
+# Sport configurations - using competition/coupon pages that show actual fixtures
+# The main sport pages (/football-betting-1) show outrights, not matches
+# Competition pages and "today's card" pages show actual fixtures
 SPORT_CONFIG = {
     "football": {
-        "base_url": "https://www.betfair.com/exchange/plus/en/football-betting-1",
-        "max_pages": 30,  # Will auto-detect actual count
+        # Football competitions with match fixtures
+        "urls": [
+            "https://www.betfair.com/exchange/plus/en/football/english-premier-league-betting-10932509",
+            "https://www.betfair.com/exchange/plus/en/football/spanish-la-liga-betting-117",
+            "https://www.betfair.com/exchange/plus/en/football/german-bundesliga-betting-59",
+            "https://www.betfair.com/exchange/plus/en/football/italian-serie-a-betting-81",
+            "https://www.betfair.com/exchange/plus/en/football/french-ligue-1-betting-55",
+            "https://www.betfair.com/exchange/plus/en/football/uefa-champions-league-betting-228",
+            "https://www.betfair.com/exchange/plus/en/football/uefa-europa-league-betting-2005",
+            "https://www.betfair.com/exchange/plus/en/football/english-championship-betting-7129730",
+            "https://www.betfair.com/exchange/plus/en/football/english-league-1-betting-35",
+            "https://www.betfair.com/exchange/plus/en/football/scottish-premiership-betting-105",
+            "https://www.betfair.com/exchange/plus/en/football/dutch-eredivisie-betting-9404054",
+            "https://www.betfair.com/exchange/plus/en/football/portuguese-primeira-liga-betting-99",
+            "https://www.betfair.com/exchange/plus/en/football/turkish-super-lig-betting-194215",
+            "https://www.betfair.com/exchange/plus/en/football/belgian-first-division-a-betting-89979",
+            "https://www.betfair.com/exchange/plus/en/football/brazilian-serie-a-betting-13",
+            "https://www.betfair.com/exchange/plus/en/football/argentine-primera-division-betting-67387",
+            "https://www.betfair.com/exchange/plus/en/football/mls-betting-141",
+        ],
     },
     "tennis": {
-        "base_url": "https://www.betfair.com/exchange/plus/en/tennis-betting-2",
-        "max_pages": 10,
+        "urls": [
+            "https://www.betfair.com/exchange/plus/en/tennis/atp-betting-20603",
+            "https://www.betfair.com/exchange/plus/en/tennis/wta-betting-20604",
+            "https://www.betfair.com/exchange/plus/en/tennis/itf-men-betting-2087246",
+            "https://www.betfair.com/exchange/plus/en/tennis/itf-women-betting-2087247",
+        ],
     },
     "basketball": {
-        "base_url": "https://www.betfair.com/exchange/plus/en/basketball-betting-10",
-        "max_pages": 5,
-    },
-    "horse-racing": {
-        "base_url": "https://www.betfair.com/exchange/plus/en/horse-racing-betting-7",
-        "max_pages": 10,
+        "urls": [
+            "https://www.betfair.com/exchange/plus/en/basketball/nba-betting-6004",
+            "https://www.betfair.com/exchange/plus/en/basketball/euroleague-betting-853",
+            "https://www.betfair.com/exchange/plus/en/basketball/ncaa-betting-136332",
+        ],
     },
     "cricket": {
-        "base_url": "https://www.betfair.com/exchange/plus/en/cricket-betting-4",
-        "max_pages": 5,
-    },
-    "golf": {
-        "base_url": "https://www.betfair.com/exchange/plus/en/golf-betting-3",
-        "max_pages": 3,
+        "urls": [
+            "https://www.betfair.com/exchange/plus/en/cricket/international-twenty20-matches-betting-4657855",
+            "https://www.betfair.com/exchange/plus/en/cricket/test-matches-betting-4",
+            "https://www.betfair.com/exchange/plus/en/cricket/indian-premier-league-betting-11978179",
+            "https://www.betfair.com/exchange/plus/en/cricket/big-bash-betting-8565149",
+        ],
     },
 }
 
@@ -101,50 +124,25 @@ def dismiss_dialogs(page: Page):
     return False
 
 
-def get_max_page_number(page: Page) -> int:
-    """Extract the maximum page number from pagination."""
-    try:
-        max_page = page.evaluate("""
-            () => {
-                // Look for pagination links
-                const pageLinks = document.querySelectorAll('a[href*="betting-"][href$="/"]');
-                let maxPage = 1;
-
-                pageLinks.forEach(link => {
-                    const href = link.getAttribute('href') || '';
-                    const match = href.match(/\\/(\\d+)\\/?$/);
-                    if (match) {
-                        const pageNum = parseInt(match[1]);
-                        if (pageNum > maxPage) maxPage = pageNum;
-                    }
-                });
-
-                // Also check pagination container
-                const pagination = document.querySelector('.pagination, [class*="pagination"]');
-                if (pagination) {
-                    const links = pagination.querySelectorAll('a');
-                    links.forEach(link => {
-                        const text = link.textContent.trim();
-                        const num = parseInt(text);
-                        if (!isNaN(num) && num > maxPage) maxPage = num;
-                    });
-                }
-
-                return maxPage;
-            }
-        """)
-        return max_page if max_page > 0 else 1
-    except:
-        return 1
+def extract_competition_from_url(url: str) -> str:
+    """Extract competition name from Betfair URL."""
+    # URL format: .../football/english-premier-league-betting-10932509
+    match = re.search(r'/([^/]+)-betting-\d+$', url)
+    if match:
+        comp_slug = match.group(1)
+        # Convert slug to readable name
+        name = comp_slug.replace('-', ' ').title()
+        return name
+    return "Other"
 
 
-def scrape_exchange_page(page: Page, sport: str, url: str, page_num: int, order_offset: int = 0) -> List[Dict[str, Any]]:
-    """Scrape a single page of exchange events."""
+def scrape_competition_page(page: Page, sport: str, url: str, competition: str, order_offset: int = 0) -> List[Dict[str, Any]]:
+    """Scrape a competition page for match fixtures."""
     events = []
     timestamp = datetime.utcnow().isoformat() + 'Z'
 
     try:
-        print(f"    Scraping page {page_num}: {url}...", flush=True)
+        print(f"    Scraping {competition}: {url}...", flush=True)
 
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=20000)
@@ -154,9 +152,8 @@ def scrape_exchange_page(page: Page, sport: str, url: str, page_num: int, order_
 
         time.sleep(3)  # Wait for JS rendering
 
-        # Dismiss dialogs on first page
-        if page_num == 1:
-            dismiss_dialogs(page)
+        # Dismiss dialogs
+        dismiss_dialogs(page)
 
         # Scroll to load dynamic content
         for _ in range(3):
@@ -384,19 +381,22 @@ def scrape_exchange_page(page: Page, sport: str, url: str, page_num: int, order_
             if not event_name or len(event_name) < 3:
                 continue
 
-            competition = raw.get('competition', 'Other')
-            if not competition or competition == '':
-                competition = 'Other'
+            # Use the competition passed in (from URL), fall back to scraped or default
+            event_competition = competition
+            if not event_competition or event_competition == 'Other':
+                event_competition = raw.get('competition', 'Other')
+            if not event_competition or event_competition == '':
+                event_competition = 'Other'
 
             source_url = f"https://www.betfair.com{raw.get('eventUrl', '')}" if raw.get('eventUrl') else url
 
-            # Calculate global scrape order: page offset + position within page
+            # Calculate global scrape order: offset + position within page
             scrape_order = order_offset + raw.get('scrapeOrder', len(events))
 
             event = {
                 "event_name": event_name,
                 "sport": sport,
-                "competition": competition,
+                "competition": event_competition,
                 "start_time": raw.get('startTime'),
                 "is_live": 1 if raw.get('isLive') else 0,
                 "status": "live" if raw.get('isLive') else "upcoming",
@@ -437,58 +437,36 @@ def scrape_exchange_page(page: Page, sport: str, url: str, page_num: int, order_
 
             events.append(event)
 
-        print(f"      Found {len(events)} events on page {page_num}", flush=True)
+        print(f"      Found {len(events)} events in {competition}", flush=True)
 
     except Exception as e:
-        print(f"      Error scraping page {page_num}: {e}", flush=True)
+        print(f"      Error scraping {competition}: {e}", flush=True)
         import traceback
         traceback.print_exc()
 
     return events
 
 
-def scrape_sport_all_pages(page: Page, sport: str, config: Dict) -> List[Dict[str, Any]]:
-    """Scrape all pages for a sport."""
+def scrape_sport_competitions(page: Page, sport: str, config: Dict) -> List[Dict[str, Any]]:
+    """Scrape all competition pages for a sport."""
     all_events = []
     seen_urls = set()
 
-    base_url = config["base_url"]
-    max_pages = config.get("max_pages", 10)
+    urls = config.get("urls", [])
+    print(f"  Scraping {sport} ({len(urls)} competitions)...", flush=True)
 
-    print(f"  Scraping {sport} (up to {max_pages} pages)...", flush=True)
+    for url in urls:
+        # Extract competition name from URL
+        competition = extract_competition_from_url(url)
 
-    # Scrape first page to detect actual max pages
-    page.goto(base_url, wait_until="domcontentloaded", timeout=20000)
-    time.sleep(3)
+        # Scrape this competition page
+        events = scrape_competition_page(page, sport, url, competition, order_offset=len(all_events))
 
-    actual_max = get_max_page_number(page)
-    max_pages = min(max_pages, max(actual_max, 1))
-    print(f"    Detected {actual_max} pages, will scrape up to {max_pages}", flush=True)
-
-    # Scrape page 1 (already loaded)
-    events = scrape_exchange_page(page, sport, base_url, 1, order_offset=0)
-    for ev in events:
-        if ev["source_url"] not in seen_urls:
-            seen_urls.add(ev["source_url"])
-            all_events.append(ev)
-
-    # Scrape remaining pages
-    for page_num in range(2, max_pages + 1):
-        page_url = f"{base_url}/{page_num}"
-        # Pass order_offset to maintain global ordering across pages
-        events = scrape_exchange_page(page, sport, page_url, page_num, order_offset=len(all_events))
-
-        new_count = 0
+        # Add unique events
         for ev in events:
             if ev["source_url"] not in seen_urls:
                 seen_urls.add(ev["source_url"])
                 all_events.append(ev)
-                new_count += 1
-
-        # If no new events found, stop pagination
-        if new_count == 0 and len(events) == 0:
-            print(f"    No more events found, stopping at page {page_num}", flush=True)
-            break
 
         time.sleep(1)  # Be nice to Betfair
 
@@ -581,8 +559,8 @@ def save_exchange_events_to_db(events: List[Dict[str, Any]]) -> int:
 
 
 def run_exchange_scrape() -> Dict[str, Any]:
-    """Run a full scrape of all sports from Betfair Exchange with pagination."""
-    print(f"[{datetime.utcnow().isoformat()}] Starting Betfair Exchange scrape (with pagination)...", flush=True)
+    """Run a full scrape of all sports from Betfair Exchange competition pages."""
+    print(f"[{datetime.utcnow().isoformat()}] Starting Betfair Exchange scrape (competition pages)...", flush=True)
 
     counts = {}
     total = 0
@@ -609,7 +587,7 @@ def run_exchange_scrape() -> Dict[str, Any]:
             for sport, config in SPORT_CONFIG.items():
                 try:
                     print(f"  Starting Exchange scrape for {sport}...", flush=True)
-                    events = scrape_sport_all_pages(page, sport, config)
+                    events = scrape_sport_competitions(page, sport, config)
                     saved = save_exchange_events_to_db(events)
                     counts[sport] = saved
                     total += saved
