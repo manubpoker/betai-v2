@@ -172,13 +172,20 @@ def scrape_sport(page: Page, sport: str, url: str) -> List[Dict[str, Any]]:
 
     try:
         print(f"  Scraping {sport} from {url}...", flush=True)
-        page.goto(url, wait_until="networkidle", timeout=30000)
-        time.sleep(3)
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=15000)
+        except Exception as nav_err:
+            print(f"    Navigation error: {nav_err}", flush=True)
+            return events
+        time.sleep(2)
 
         # Debug: Check page title and content length
-        title = page.title()
-        content_len = len(page.content())
-        print(f"    Page title: {title}, content length: {content_len}", flush=True)
+        try:
+            title = page.title()
+            content_len = len(page.content())
+            print(f"    Page title: {title}, content length: {content_len}", flush=True)
+        except Exception as debug_err:
+            print(f"    Debug error: {debug_err}", flush=True)
 
         # Dismiss cookie consent on first load
         dismiss_cookie_consent(page)

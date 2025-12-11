@@ -126,9 +126,21 @@ def scrape_exchange_sport(page: Page, sport: str, url: str) -> List[Dict[str, An
     timestamp = datetime.utcnow().isoformat() + 'Z'
 
     try:
-        print(f"  Scraping Exchange {sport} from {url}...")
-        page.goto(url, wait_until="domcontentloaded", timeout=45000)
-        time.sleep(6)
+        print(f"  Scraping Exchange {sport} from {url}...", flush=True)
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=15000)
+        except Exception as nav_err:
+            print(f"    Navigation error: {nav_err}", flush=True)
+            return events
+        time.sleep(3)
+
+        # Debug: Check page title
+        try:
+            title = page.title()
+            content_len = len(page.content())
+            print(f"    Page title: {title}, content length: {content_len}", flush=True)
+        except Exception as debug_err:
+            print(f"    Debug error: {debug_err}", flush=True)
 
         # Dismiss cookie consent
         dismiss_cookie_consent(page)
