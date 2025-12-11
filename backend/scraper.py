@@ -679,39 +679,56 @@ def run_full_scrape() -> Dict[str, Any]:
             - total: Total events scraped
             - counts: Events per sport
     """
-    print(f"[{datetime.utcnow().isoformat()}] Starting full Betfair scrape...")
+    print(f"[{datetime.utcnow().isoformat()}] Starting full Betfair scrape...", flush=True)
 
     # Clear old data
+    print("Clearing old events from database...", flush=True)
     clear_old_events()
+    print("Old events cleared.", flush=True)
 
     counts = {}
     total = 0
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            args=['--no-sandbox', '--disable-setuid-sandbox']
-        )
-        context = browser.new_context(
-            viewport={"width": 1920, "height": 1080},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        )
-        page = context.new_page()
+    print("Launching Playwright browser...", flush=True)
+    try:
+        with sync_playwright() as p:
+            print("Playwright context created, launching Chromium...", flush=True)
+            browser = p.chromium.launch(
+                headless=True,
+                args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            )
+            print("Browser launched successfully!", flush=True)
+            context = browser.new_context(
+                viewport={"width": 1920, "height": 1080},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            )
+            print("Browser context created.", flush=True)
+            page = context.new_page()
+            print("New page created, starting sport scrapes...", flush=True)
 
-        for sport, url in SPORT_URLS.items():
-            try:
-                events = scrape_sport(page, sport, url)
-                saved = save_events_to_db(events)
-                counts[sport] = saved
-                total += saved
-                time.sleep(1)  # Be nice to Betfair
-            except Exception as e:
-                print(f"Error with {sport}: {e}")
-                counts[sport] = 0
+            for sport, url in SPORT_URLS.items():
+                try:
+                    print(f"  Starting scrape for {sport}...", flush=True)
+                    events = scrape_sport(page, sport, url)
+                    saved = save_events_to_db(events)
+                    counts[sport] = saved
+                    total += saved
+                    print(f"  Completed {sport}: {saved} events saved", flush=True)
+                    time.sleep(1)  # Be nice to Betfair
+                except Exception as e:
+                    print(f"Error with {sport}: {e}", flush=True)
+                    import traceback
+                    traceback.print_exc()
+                    counts[sport] = 0
 
-        browser.close()
+            browser.close()
+            print("Browser closed.", flush=True)
+    except Exception as e:
+        print(f"CRITICAL ERROR in run_full_scrape: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
 
-    print(f"Scrape complete. Total events: {total}")
+    print(f"Scrape complete. Total events: {total}", flush=True)
     return {"total": total, "counts": counts}
 
 

@@ -507,36 +507,51 @@ def run_exchange_scrape() -> Dict[str, Any]:
             - total: Total events scraped
             - counts: Events per sport
     """
-    print(f"[{datetime.utcnow().isoformat()}] Starting Betfair Exchange scrape...")
+    print(f"[{datetime.utcnow().isoformat()}] Starting Betfair Exchange scrape...", flush=True)
 
     counts = {}
     total = 0
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            args=['--no-sandbox', '--disable-setuid-sandbox']
-        )
-        context = browser.new_context(
-            viewport={"width": 1920, "height": 1080},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        )
-        page = context.new_page()
+    print("Launching Exchange Playwright browser...", flush=True)
+    try:
+        with sync_playwright() as p:
+            print("Exchange Playwright context created, launching Chromium...", flush=True)
+            browser = p.chromium.launch(
+                headless=True,
+                args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            )
+            print("Exchange browser launched successfully!", flush=True)
+            context = browser.new_context(
+                viewport={"width": 1920, "height": 1080},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            )
+            print("Exchange browser context created.", flush=True)
+            page = context.new_page()
+            print("Exchange new page created, starting sport scrapes...", flush=True)
 
-        for sport, url in EXCHANGE_URLS.items():
-            try:
-                events = scrape_exchange_sport(page, sport, url)
-                saved = save_exchange_events_to_db(events)
-                counts[sport] = saved
-                total += saved
-                time.sleep(2)  # Be nice to Betfair
-            except Exception as e:
-                print(f"Error with Exchange {sport}: {e}")
-                counts[sport] = 0
+            for sport, url in EXCHANGE_URLS.items():
+                try:
+                    print(f"  Starting Exchange scrape for {sport}...", flush=True)
+                    events = scrape_exchange_sport(page, sport, url)
+                    saved = save_exchange_events_to_db(events)
+                    counts[sport] = saved
+                    total += saved
+                    print(f"  Completed Exchange {sport}: {saved} events saved", flush=True)
+                    time.sleep(2)  # Be nice to Betfair
+                except Exception as e:
+                    print(f"Error with Exchange {sport}: {e}", flush=True)
+                    import traceback
+                    traceback.print_exc()
+                    counts[sport] = 0
 
-        browser.close()
+            browser.close()
+            print("Exchange browser closed.", flush=True)
+    except Exception as e:
+        print(f"CRITICAL ERROR in run_exchange_scrape: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
 
-    print(f"Exchange scrape complete. Total events: {total}")
+    print(f"Exchange scrape complete. Total events: {total}", flush=True)
     return {"total": total, "counts": counts}
 
 
