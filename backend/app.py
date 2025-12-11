@@ -1086,9 +1086,27 @@ def scheduled_bet_check():
 # Always initialize database on module load (for gunicorn)
 init_db()
 
-if __name__ == '__main__':
+def run_initial_scrape_background():
+    """Run initial scrape in background thread so it doesn't block startup."""
+    import time
+    time.sleep(5)  # Give the server a moment to fully start
+    print("Running initial scrape in background (both sportsbook and exchange)...")
+    try:
+        with app.app_context():
+            from scraper import run_full_scrape as run_sportsbook_scrape
+            from exchange_scraper import run_exchange_scrape
 
-    # Start scheduler for auto-refresh and bet checking
+            sb_result = run_sportsbook_scrape()
+            print(f"  Sportsbook: {(sb_result or {}).get('total', 0)} events")
+
+            ex_result = run_exchange_scrape()
+            print(f"  Exchange: {(ex_result or {}).get('total', 0)} events")
+    except Exception as e:
+        print(f"Initial scrape error: {e}")
+
+# Start scheduler for auto-refresh and bet checking (runs for both gunicorn and direct)
+# Only add jobs if scheduler hasn't been configured yet
+if not scheduler.get_jobs():
     scheduler.add_job(
         scheduled_scrape,
         'interval',
@@ -1104,22 +1122,13 @@ if __name__ == '__main__':
     scheduler.start()
     print(f"Scheduler started: odds refresh every {SCRAPE_INTERVAL_MINUTES} min, bet check every 30 min")
 
-    # Run initial scrape (both sportsbook and exchange)
-    print("Running initial scrape (both sportsbook and exchange)...")
-    try:
-        with app.app_context():
-            from scraper import run_full_scrape as run_sportsbook_scrape
-            from exchange_scraper import run_exchange_scrape
+    # Run initial scrape in background thread (doesn't block server startup)
+    import threading
+    scrape_thread = threading.Thread(target=run_initial_scrape_background, daemon=True)
+    scrape_thread.start()
 
-            sb_result = run_sportsbook_scrape()
-            print(f"  Sportsbook: {sb_result.get('total', 0)} events")
-
-            ex_result = run_exchange_scrape()
-            print(f"  Exchange: {ex_result.get('total', 0)} events")
-    except Exception as e:
-        print(f"Initial scrape skipped: {e}")
-
-    # Start Flask server
+if __name__ == '__main__':
+    # Start Flask server (for local development)
     port = int(os.environ.get('PORT', 3001))
     print(f"Starting BetAI v2 backend on port {port}...")
     app.run(host='0.0.0.0', port=port, debug=True, use_reloader=False)
