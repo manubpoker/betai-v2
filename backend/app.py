@@ -374,8 +374,55 @@ def trigger_scrape():
 
 @app.route('/api/scrape/status', methods=['GET'])
 def get_scrape_status():
-    """Get current scraper status."""
-    return jsonify(scraper_status)
+    """Get current scraper status with data freshness info."""
+    db = get_db()
+
+    # Get freshness info
+    newest = db.execute('''
+        SELECT scraped_at FROM scraped_events
+        ORDER BY scraped_at DESC
+        LIMIT 1
+    ''').fetchone()
+
+    total_events = db.execute('SELECT COUNT(*) as count FROM scraped_events').fetchone()['count']
+
+    # Get counts by sport
+    sport_counts = db.execute('''
+        SELECT sport, COUNT(*) as count
+        FROM scraped_events
+        GROUP BY sport
+    ''').fetchall()
+
+    # Get counts by competition
+    comp_counts = db.execute('''
+        SELECT competition, COUNT(*) as count
+        FROM scraped_events
+        WHERE competition IS NOT NULL AND competition != ''
+        GROUP BY competition
+        ORDER BY count DESC
+    ''').fetchall()
+
+    freshness = None
+    if newest:
+        try:
+            scraped_at = datetime.fromisoformat(newest['scraped_at'].replace('Z', '+00:00'))
+            age_seconds = (datetime.now(scraped_at.tzinfo) - scraped_at).total_seconds()
+            freshness = {
+                "last_scrape": newest['scraped_at'],
+                "age_seconds": int(age_seconds),
+                "age_minutes": round(age_seconds / 60, 1),
+                "is_fresh": age_seconds < 1800  # Less than 30 minutes old
+            }
+        except:
+            pass
+
+    return jsonify({
+        **scraper_status,
+        "total_events": total_events,
+        "freshness": freshness,
+        "sports": {s['sport']: s['count'] for s in sport_counts},
+        "competitions": {c['competition']: c['count'] for c in comp_counts}
+    })
 
 
 # ============================================================

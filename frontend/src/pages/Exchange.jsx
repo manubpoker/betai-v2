@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import SportsSidebar from '../components/SportsSidebar'
 import OddsGrid from '../components/OddsGrid'
 import BetSlip from '../components/BetSlip'
 import AIChatPanel from '../components/AIChatPanel'
 import BetHistory from '../components/BetHistory'
 import { API_BASE } from '../config'
+
+const EVENTS_PER_PAGE = 20
+const AUTO_REFRESH_INTERVAL = 60000 // 60 seconds
 
 export default function Exchange({ balance, onBalanceChange }) {
   const [sports, setSports] = useState([])
@@ -13,6 +16,13 @@ export default function Exchange({ balance, onBalanceChange }) {
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState(null)
   const [betSlip, setBetSlip] = useState([])
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+
+  // Scrape status state
+  const [scrapeStatus, setScrapeStatus] = useState(null)
 
   // AI Chat state for Match Intelligence
   const [isChatOpen, setIsChatOpen] = useState(false)
@@ -39,36 +49,76 @@ export default function Exchange({ balance, onBalanceChange }) {
     fetchSports()
   }, [])
 
-  // Fetch events when sport changes - EXCHANGE DATA ONLY
-  useEffect(() => {
-    async function fetchEvents() {
-      if (!selectedSport) return
+  // Fetch events function - memoized for reuse
+  const fetchEvents = useCallback(async (silent = false) => {
+    if (!selectedSport) return
 
-      setLoading(true)
-      try {
-        // Request exchange data only (with back/lay odds)
-        const url = selectedSport
-          ? `${API_BASE}/api/events?sport=${encodeURIComponent(selectedSport)}&data_type=exchange`
-          : `${API_BASE}/api/events?data_type=exchange`
-        const res = await fetch(url)
-        const data = await res.json()
-        setEvents(data)
+    if (!silent) setLoading(true)
+    try {
+      const url = selectedSport
+        ? `${API_BASE}/api/events?sport=${encodeURIComponent(selectedSport)}&data_type=exchange`
+        : `${API_BASE}/api/events?data_type=exchange`
+      const res = await fetch(url)
+      const data = await res.json()
+      setEvents(data)
 
-        // Set last updated time
-        if (data.length > 0) {
-          const newest = data.reduce((a, b) =>
-            new Date(a.scraped_at) > new Date(b.scraped_at) ? a : b
-          )
-          setLastUpdated(new Date(newest.scraped_at))
-        }
-      } catch (err) {
-        console.error('Error fetching events:', err)
-      } finally {
-        setLoading(false)
+      // Calculate pagination
+      setTotalPages(Math.max(1, Math.ceil(data.length / EVENTS_PER_PAGE)))
+
+      // Set last updated time
+      if (data.length > 0) {
+        const newest = data.reduce((a, b) =>
+          new Date(a.scraped_at) > new Date(b.scraped_at) ? a : b
+        )
+        setLastUpdated(new Date(newest.scraped_at))
       }
+    } catch (err) {
+      console.error('Error fetching events:', err)
+    } finally {
+      if (!silent) setLoading(false)
     }
-    fetchEvents()
   }, [selectedSport])
+
+  // Fetch scrape status
+  const fetchScrapeStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/scrape/status`)
+      const data = await res.json()
+      setScrapeStatus(data)
+
+      // If data is fresh and we have new events, auto-refresh
+      if (data.freshness && data.freshness.age_seconds < 120) {
+        // Data was updated within last 2 minutes, refresh silently
+        fetchEvents(true)
+      }
+    } catch (err) {
+      console.error('Error fetching scrape status:', err)
+    }
+  }, [fetchEvents])
+
+  // Fetch events when sport changes
+  useEffect(() => {
+    setCurrentPage(1) // Reset to page 1 when sport changes
+    fetchEvents()
+  }, [selectedSport, fetchEvents])
+
+  // Auto-refresh events periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchScrapeStatus()
+    }, AUTO_REFRESH_INTERVAL)
+
+    // Initial fetch
+    fetchScrapeStatus()
+
+    return () => clearInterval(interval)
+  }, [fetchScrapeStatus])
+
+  // Get paginated events
+  const paginatedEvents = events.slice(
+    (currentPage - 1) * EVENTS_PER_PAGE,
+    currentPage * EVENTS_PER_PAGE
+  )
 
   // Add selection to bet slip
   const addToBetSlip = (event, selection, odds, type) => {
@@ -78,11 +128,10 @@ export default function Exchange({ balance, onBalanceChange }) {
       eventName: event.event_name,
       selection,
       odds,
-      type, // 'back' or 'lay'
+      type,
       stake: '',
     }
 
-    // Check if already in slip
     if (!betSlip.find(b => b.id === newBet.id)) {
       setBetSlip([...betSlip, newBet])
     }
@@ -105,13 +154,9 @@ export default function Exchange({ balance, onBalanceChange }) {
     setBetSlip([])
   }
 
-  // Handle Match Intelligence - opens AI chat with pre-populated research query
-  // Receives odds directly from OddsGrid component (page data supersedes DB)
+  // Handle Match Intelligence
   const handleMatchIntelligence = async (event, odds = []) => {
-    // Simplified message for display
     const message = `Research value bets for "${event.event_name}" (${event.sport}).`
-
-    // Use odds passed from OddsGrid (page data supersedes DB)
     const currentOdds = odds.map(o => ({
       selection: o.selection_name,
       back_odds: o.back_odds,
@@ -125,9 +170,8 @@ export default function Exchange({ balance, onBalanceChange }) {
       competition: event.competition,
       is_live: event.is_live,
       start_time: event.start_time,
-      // Include current odds from page - this supersedes DB data
       current_odds_from_page: currentOdds,
-      note: "IMPORTANT: Use current_odds_from_page as the authoritative odds source. This data comes directly from the page and is more current than the database."
+      note: "IMPORTANT: Use current_odds_from_page as the authoritative odds source."
     }
     setChatInitialMessage(message)
     setChatEventContext(context)
@@ -153,24 +197,11 @@ export default function Exchange({ balance, onBalanceChange }) {
     setIsRefreshing(true)
     setRefreshError(null)
     try {
-      // Trigger exchange scrape only
       const res = await fetch(`${API_BASE}/api/scrape/trigger?data_type=exchange`, { method: 'POST' })
       const data = await res.json()
       if (data.success) {
-        // Re-fetch exchange events after scrape completes
-        const eventsRes = await fetch(
-          selectedSport
-            ? `${API_BASE}/api/events?sport=${encodeURIComponent(selectedSport)}&data_type=exchange`
-            : `${API_BASE}/api/events?data_type=exchange`
-        )
-        const eventsData = await eventsRes.json()
-        setEvents(eventsData)
-        if (eventsData.length > 0) {
-          const newest = eventsData.reduce((a, b) =>
-            new Date(a.scraped_at) > new Date(b.scraped_at) ? a : b
-          )
-          setLastUpdated(new Date(newest.scraped_at))
-        }
+        await fetchEvents()
+        await fetchScrapeStatus()
       } else {
         setRefreshError(data.error || 'Scrape failed')
       }
@@ -180,6 +211,91 @@ export default function Exchange({ balance, onBalanceChange }) {
     } finally {
       setIsRefreshing(false)
     }
+  }
+
+  // Pagination component
+  const Pagination = () => {
+    if (totalPages <= 1) return null
+
+    const pages = []
+    const maxVisiblePages = 7
+
+    // Calculate visible page range
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2))
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1)
+    }
+
+    // First page
+    if (startPage > 1) {
+      pages.push(
+        <button
+          key={1}
+          onClick={() => setCurrentPage(1)}
+          className="px-3 py-1 rounded bg-gray-700 text-white hover:bg-gray-600"
+        >
+          1
+        </button>
+      )
+      if (startPage > 2) {
+        pages.push(<span key="ellipsis1" className="px-2 text-gray-500">...</span>)
+      }
+    }
+
+    // Page numbers
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(
+        <button
+          key={i}
+          onClick={() => setCurrentPage(i)}
+          className={`px-3 py-1 rounded ${
+            i === currentPage
+              ? 'bg-betfair-gold text-dark-navy font-bold'
+              : 'bg-gray-700 text-white hover:bg-gray-600'
+          }`}
+        >
+          {i}
+        </button>
+      )
+    }
+
+    // Last page
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        pages.push(<span key="ellipsis2" className="px-2 text-gray-500">...</span>)
+      }
+      pages.push(
+        <button
+          key={totalPages}
+          onClick={() => setCurrentPage(totalPages)}
+          className="px-3 py-1 rounded bg-gray-700 text-white hover:bg-gray-600"
+        >
+          {totalPages}
+        </button>
+      )
+    }
+
+    return (
+      <div className="flex items-center justify-center gap-2 mt-6 mb-4">
+        <button
+          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+          disabled={currentPage === 1}
+          className="px-3 py-1 rounded bg-gray-700 text-white hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          &lt;
+        </button>
+        {pages}
+        <button
+          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+          disabled={currentPage === totalPages}
+          className="px-3 py-1 rounded bg-gray-700 text-white hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          &gt;
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -197,12 +313,22 @@ export default function Exchange({ balance, onBalanceChange }) {
       <div className="flex-1">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-white">
-            Exchange - {selectedSport || 'All Sports'}
-          </h1>
+          <div>
+            <h1 className="text-2xl font-bold text-white">
+              Exchange - {selectedSport || 'All Sports'}
+            </h1>
+            <div className="text-sm text-gray-400 mt-1">
+              {events.length} events {totalPages > 1 && `(Page ${currentPage} of ${totalPages})`}
+            </div>
+          </div>
           <div className="flex items-center gap-4">
             <div className="text-sm text-gray-400">
-              Last updated: <span className="text-betfair-gold">{formatLastUpdated()}</span>
+              Updated: <span className="text-betfair-gold">{formatLastUpdated()}</span>
+              {scrapeStatus?.freshness?.is_fresh && (
+                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300">
+                  Live
+                </span>
+              )}
             </div>
             <button
               onClick={() => setIsHistoryOpen(true)}
@@ -239,6 +365,9 @@ export default function Exchange({ balance, onBalanceChange }) {
           </div>
         )}
 
+        {/* Pagination - Top */}
+        <Pagination />
+
         {/* Odds Grid */}
         {loading ? (
           <div className="flex items-center justify-center h-64">
@@ -248,15 +377,24 @@ export default function Exchange({ balance, onBalanceChange }) {
           <div className="text-center py-12 text-gray-400">
             <p>No events available for {selectedSport}</p>
             <p className="text-sm mt-2">Data is scraped from Betfair in real-time</p>
+            <button
+              onClick={handleRefreshOdds}
+              className="mt-4 px-4 py-2 bg-betfair-gold text-dark-navy rounded hover:bg-betfair-gold/80"
+            >
+              Trigger Scrape
+            </button>
           </div>
         ) : (
           <OddsGrid
-            events={events}
+            events={paginatedEvents}
             onSelectOdds={addToBetSlip}
             betSlip={betSlip}
             onMatchIntelligence={handleMatchIntelligence}
           />
         )}
+
+        {/* Pagination - Bottom */}
+        <Pagination />
       </div>
 
       {/* Bet Slip */}
