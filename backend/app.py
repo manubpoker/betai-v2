@@ -77,6 +77,12 @@ def init_db():
     except:
         pass  # Column already exists
 
+    # Add scrape_order column if it doesn't exist (for preserving Betfair page order)
+    try:
+        cursor.execute("ALTER TABLE scraped_events ADD COLUMN scrape_order INTEGER DEFAULT 0")
+    except:
+        pass  # Column already exists
+
     # scraped_odds table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS scraped_odds (
@@ -450,11 +456,11 @@ def get_events():
 
     where_clause = " AND ".join(conditions) if conditions else "1=1"
 
-    # Get events ordered by competition then start_time for proper grouping
+    # Get events ordered by scrape_order to preserve Betfair page order
     events = db.execute(f'''
         SELECT * FROM scraped_events
         WHERE {where_clause}
-        ORDER BY sport, competition, start_time ASC
+        ORDER BY scrape_order ASC, id ASC
     ''', params).fetchall()
 
     # Get all odds in a single query for efficiency

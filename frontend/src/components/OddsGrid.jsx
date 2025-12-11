@@ -1,18 +1,26 @@
 import { useState } from 'react'
 
-// Parse event name to separate date/time prefix from actual name
+// Parse event name to separate date/time/status prefix from actual name
 function parseEventName(rawName) {
   if (!rawName) return { name: '', dateTime: null }
 
+  // Patterns to match time/status prefixes like "Starting In 7'mi", "17:30", "Today 17:30", etc.
   const dateTimePatterns = [
-    /^([A-Z][a-z]{2}\s+\d{1,2}\s+\d{1,2}:\d{2})(.+)$/,
-    /^(\d{1,2}\s+[A-Z][a-z]{2}\s+\d{1,2}:\d{2})\s*(.+)$/,
-    /^(\d{1,2}:\d{2})\s*(.+)$/,
+    /^(Starting\s+In\s+[\d']+mi?)\s*(.+)$/i,      // "Starting In 7'mi" or "Starting In 7mi"
+    /^(In-Play)\s*(.+)$/i,                         // "In-Play"
+    /^(Today|Tomorrow)\s+(\d{1,2}:\d{2})\s*(.+)$/, // "Today 17:30" - captures day and time separately
+    /^([A-Z][a-z]{2}\s+\d{1,2}\s+\d{1,2}:\d{2})\s*(.+)$/, // "Dec 11 17:30"
+    /^(\d{1,2}\s+[A-Z][a-z]{2}\s+\d{1,2}:\d{2})\s*(.+)$/, // "11 Dec 17:30"
+    /^(\d{1,2}:\d{2})\s*(.+)$/,                    // "17:30"
   ]
 
   for (const pattern of dateTimePatterns) {
     const match = rawName.match(pattern)
     if (match) {
+      // Handle "Today/Tomorrow HH:MM" pattern separately (has 3 groups)
+      if (match.length === 4) {
+        return { dateTime: `${match[1]} ${match[2]}`, name: match[3].trim() }
+      }
       return { dateTime: match[1].trim(), name: match[2].trim() }
     }
   }

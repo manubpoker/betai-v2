@@ -11,7 +11,7 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
   const [processedInitialMessage, setProcessedInitialMessage] = useState(null)
   const messagesEndRef = useRef(null)
 
-  // Check AI status on mount
+  // Check AI status on mount (not just when opened) to maintain permanent connection
   useEffect(() => {
     async function checkStatus() {
       try {
@@ -32,10 +32,13 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
         })
       }
     }
-    if (isOpen) {
-      checkStatus()
-    }
-  }, [isOpen])
+    // Check immediately on mount
+    checkStatus()
+
+    // Re-check periodically to maintain connection status
+    const interval = setInterval(checkStatus, 30000) // Every 30 seconds
+    return () => clearInterval(interval)
+  }, [])
 
   // Scroll to bottom when messages change
   useEffect(() => {

@@ -138,7 +138,7 @@ def get_max_page_number(page: Page) -> int:
         return 1
 
 
-def scrape_exchange_page(page: Page, sport: str, url: str, page_num: int) -> List[Dict[str, Any]]:
+def scrape_exchange_page(page: Page, sport: str, url: str, page_num: int, order_offset: int = 0) -> List[Dict[str, Any]]:
     """Scrape a single page of exchange events."""
     events = []
     timestamp = datetime.utcnow().isoformat() + 'Z'
@@ -209,6 +209,7 @@ def scrape_exchange_page(page: Page, sport: str, url: str, page_num: int) -> Lis
 
                         // Parse team names
                         let teamNames = [];
+                        let timeStatus = null;  // "Starting In 7'mi", "17:30", etc.
 
                         // Try to find team names in spans
                         const teamSpans = eventLink.querySelectorAll('span, p');
@@ -221,25 +222,48 @@ def scrape_exchange_page(page: Page, sport: str, url: str, page_num: int) -> Lis
 
                         // If no spans, parse from text
                         if (teamNames.length < 2 && eventText) {
-                            // Remove time prefix and split by 'v'
-                            let cleanText = eventText.replace(/^(Today|Tomorrow|\\d{1,2}:\\d{2}|\\d{1,2}\\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec))\\s*/gi, '');
+                            // Extract time/status prefix first (e.g., "Starting In 7'mi", "17:30", "Today 17:30")
+                            const statusPatterns = [
+                                /^(Starting\\s+In\\s+[\\d']+mi?)\\s*/i,
+                                /^(In-Play)\\s*/i,
+                                /^(Today|Tomorrow)\\s+(\\d{1,2}:\\d{2})\\s*/i,
+                                /^(\\d{1,2}\\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\s+\\d{1,2}:\\d{2})\\s*/i,
+                                /^(\\d{1,2}:\\d{2})\\s*/i
+                            ];
+
+                            let cleanText = eventText;
+                            for (const pattern of statusPatterns) {
+                                const match = eventText.match(pattern);
+                                if (match) {
+                                    timeStatus = match[0].trim();
+                                    cleanText = eventText.substring(match[0].length).trim();
+                                    break;
+                                }
+                            }
+
                             const parts = cleanText.split(/\\s+v\\s+/i);
                             if (parts.length >= 2) {
                                 teamNames = parts.slice(0, 2).map(p => p.trim());
+                            } else if (cleanText.length > 0) {
+                                teamNames = [cleanText];
                             }
                         }
 
                         if (teamNames.length < 1) return;
 
-                        // Build event name
+                        // Build event name (clean, without time prefix)
                         const eventName = teamNames.length >= 2
                             ? teamNames[0] + ' v ' + teamNames[1]
                             : teamNames[0];
 
-                        // Get start time
+                        // Get start time from timeStatus or extracted time
                         let startTime = null;
-                        const timeMatch = eventText.match(/(\\d{1,2}:\\d{2})/);
-                        if (timeMatch) startTime = timeMatch[1];
+                        if (timeStatus) {
+                            startTime = timeStatus;
+                        } else {
+                            const timeMatch = eventText.match(/(\\d{1,2}:\\d{2})/);
+                            if (timeMatch) startTime = timeMatch[1];
+                        }
 
                         // Check if live
                         const isLive = row.querySelector('.inplay-icon, [class*="inplay"], [class*="live"]') !== null ||
@@ -279,7 +303,8 @@ def scrape_exchange_page(page: Page, sport: str, url: str, page_num: int) -> Lis
                             startTime,
                             isLive,
                             backOdds: backOdds.slice(0, 3),
-                            layOdds: layOdds.slice(0, 3)
+                            layOdds: layOdds.slice(0, 3),
+                            scrapeOrder: events.length  // Preserve order within page
                         });
                     });
                 });
@@ -343,7 +368,8 @@ def scrape_exchange_page(page: Page, sport: str, url: str, page_num: int) -> Lis
                             startTime: null,
                             isLive: false,
                             backOdds: backOdds.slice(0, 3),
-                            layOdds: layOdds.slice(0, 3)
+                            layOdds: layOdds.slice(0, 3),
+                            scrapeOrder: events.length
                         });
                     });
                 }
@@ -364,6 +390,9 @@ def scrape_exchange_page(page: Page, sport: str, url: str, page_num: int) -> Lis
 
             source_url = f"https://www.betfair.com{raw.get('eventUrl', '')}" if raw.get('eventUrl') else url
 
+            # Calculate global scrape order: page offset + position within page
+            scrape_order = order_offset + raw.get('scrapeOrder', len(events))
+
             event = {
                 "event_name": event_name,
                 "sport": sport,
@@ -375,6 +404,7 @@ def scrape_exchange_page(page: Page, sport: str, url: str, page_num: int) -> Lis
                 "scraped_at": timestamp,
                 "data_source": "real_scrape",
                 "data_type": "exchange",
+                "scrape_order": scrape_order,
                 "odds": []
             }
 
@@ -436,7 +466,7 @@ def scrape_sport_all_pages(page: Page, sport: str, config: Dict) -> List[Dict[st
     print(f"    Detected {actual_max} pages, will scrape up to {max_pages}", flush=True)
 
     # Scrape page 1 (already loaded)
-    events = scrape_exchange_page(page, sport, base_url, 1)
+    events = scrape_exchange_page(page, sport, base_url, 1, order_offset=0)
     for ev in events:
         if ev["source_url"] not in seen_urls:
             seen_urls.add(ev["source_url"])
@@ -445,7 +475,8 @@ def scrape_sport_all_pages(page: Page, sport: str, config: Dict) -> List[Dict[st
     # Scrape remaining pages
     for page_num in range(2, max_pages + 1):
         page_url = f"{base_url}/{page_num}"
-        events = scrape_exchange_page(page, sport, page_url, page_num)
+        # Pass order_offset to maintain global ordering across pages
+        events = scrape_exchange_page(page, sport, page_url, page_num, order_offset=len(all_events))
 
         new_count = 0
         for ev in events:
@@ -488,7 +519,7 @@ def save_exchange_events_to_db(events: List[Dict[str, Any]]) -> int:
                 cursor.execute('''
                     UPDATE scraped_events
                     SET sport = ?, competition = ?, event_name = ?, start_time = ?,
-                        is_live = ?, status = ?, scraped_at = ?, data_source = ?, data_type = ?
+                        is_live = ?, status = ?, scraped_at = ?, data_source = ?, data_type = ?, scrape_order = ?
                     WHERE id = ?
                 ''', (
                     event['sport'],
@@ -500,6 +531,7 @@ def save_exchange_events_to_db(events: List[Dict[str, Any]]) -> int:
                     event['scraped_at'],
                     'real_scrape',
                     'exchange',
+                    event.get('scrape_order', 0),
                     event_id
                 ))
                 cursor.execute('DELETE FROM scraped_odds WHERE event_id = ?', (event_id,))
@@ -507,8 +539,8 @@ def save_exchange_events_to_db(events: List[Dict[str, Any]]) -> int:
                 cursor.execute('''
                     INSERT INTO scraped_events
                     (sport, competition, event_name, start_time, is_live, status,
-                     scraped_at, source_url, data_source, data_type)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     scraped_at, source_url, data_source, data_type, scrape_order)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     event['sport'],
                     event.get('competition', ''),
@@ -519,7 +551,8 @@ def save_exchange_events_to_db(events: List[Dict[str, Any]]) -> int:
                     event['scraped_at'],
                     event['source_url'],
                     'real_scrape',
-                    'exchange'
+                    'exchange',
+                    event.get('scrape_order', 0)
                 ))
                 event_id = cursor.lastrowid
 
