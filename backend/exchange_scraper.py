@@ -160,174 +160,121 @@ def scrape_competition_page(page: Page, sport: str, url: str, competition: str, 
             page.keyboard.press("End")
             time.sleep(0.8)
 
-        # Extract events - more robust approach for Betfair Exchange
+        # Extract events - using correct Betfair Exchange selectors
         raw_events = page.evaluate("""
             () => {
                 const events = [];
                 const seen = new Set();
 
-                // Helper to extract odds from a row/container
-                function extractOdds(container) {
-                    const backOdds = [];
-                    const layOdds = [];
+                // Find all event rows - these have class 'mod-event-line'
+                const eventRows = document.querySelectorAll('.mod-event-line, tr:has(a.mod-link)');
 
-                    if (!container) return { backOdds, layOdds };
+                eventRows.forEach(row => {
+                    // Find the event link
+                    const link = row.querySelector('a.mod-link');
+                    if (!link) return;
 
-                    // Try multiple selector patterns for back odds
-                    const backSelectors = [
-                        '.bet-buttons .back-selection-button .bet-button-price',
-                        '.back button .bet-button-price',
-                        '.runner-line .back .bet-button-price',
-                        'button.back-selection-button .bet-button-price',
-                        '.back-cell .bet-button-price',
-                        '[class*="back"] .bet-button-price',
-                        '.back button span',
-                        '.back button label'
-                    ];
-
-                    for (const sel of backSelectors) {
-                        const els = container.querySelectorAll(sel);
-                        if (els.length > 0) {
-                            els.forEach(el => {
-                                const price = parseFloat(el.textContent.trim());
-                                if (!isNaN(price) && price > 1 && price < 1000) {
-                                    backOdds.push(price);
-                                }
-                            });
-                            if (backOdds.length > 0) break;
-                        }
-                    }
-
-                    // Try multiple selector patterns for lay odds
-                    const laySelectors = [
-                        '.bet-buttons .lay-selection-button .bet-button-price',
-                        '.lay button .bet-button-price',
-                        '.runner-line .lay .bet-button-price',
-                        'button.lay-selection-button .bet-button-price',
-                        '.lay-cell .bet-button-price',
-                        '[class*="lay"] .bet-button-price',
-                        '.lay button span',
-                        '.lay button label'
-                    ];
-
-                    for (const sel of laySelectors) {
-                        const els = container.querySelectorAll(sel);
-                        if (els.length > 0) {
-                            els.forEach(el => {
-                                const price = parseFloat(el.textContent.trim());
-                                if (!isNaN(price) && price > 1 && price < 1000) {
-                                    layOdds.push(price);
-                                }
-                            });
-                            if (layOdds.length > 0) break;
-                        }
-                    }
-
-                    return { backOdds: backOdds.slice(0, 3), layOdds: layOdds.slice(0, 3) };
-                }
-
-                // Helper to parse event name and time
-                function parseEventText(text) {
-                    if (!text) return { eventName: '', startTime: null, teamNames: [] };
-
-                    let startTime = null;
-                    let cleanText = text;
-
-                    // Extract time/status patterns
-                    const patterns = [
-                        /^(Starting\\s+In\\s+[\\d']+m?i?n?)\\s*/i,
-                        /^(In-Play|In Play)\\s*/i,
-                        /^(Today|Tomorrow)\\s+(\\d{1,2}:\\d{2})\\s*/i,
-                        /^(\\d{1,2}\\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\s+\\d{1,2}:\\d{2})\\s*/i,
-                        /^(\\d{1,2}:\\d{2})\\s*/i,
-                        /^(\\d{1,2}[:.']\\d{2})\\s*/i
-                    ];
-
-                    for (const pattern of patterns) {
-                        const match = text.match(pattern);
-                        if (match) {
-                            startTime = match[0].trim();
-                            cleanText = text.substring(match[0].length).trim();
-                            break;
-                        }
-                    }
-
-                    // Parse team names - look for "v" or " - " separator
-                    let teamNames = [];
-                    const separators = [/\\s+v\\s+/i, /\\s+-\\s+/, /\\s+vs\\.?\\s+/i];
-
-                    for (const sep of separators) {
-                        const parts = cleanText.split(sep);
-                        if (parts.length >= 2) {
-                            teamNames = parts.slice(0, 2).map(p => p.trim());
-                            break;
-                        }
-                    }
-
-                    if (teamNames.length === 0 && cleanText) {
-                        teamNames = [cleanText];
-                    }
-
-                    const eventName = teamNames.length >= 2
-                        ? teamNames[0] + ' v ' + teamNames[1]
-                        : teamNames[0] || cleanText;
-
-                    return { eventName, startTime, teamNames };
-                }
-
-                // APPROACH 1: Find all market links directly
-                const marketLinks = document.querySelectorAll('a[href*="/market/"]');
-
-                marketLinks.forEach(link => {
                     const url = link.getAttribute('href') || '';
                     if (!url || seen.has(url)) return;
 
-                    // Skip outright/winner markets
-                    const text = link.textContent.trim();
-                    if (text.toLowerCase().includes('winner') ||
-                        text.toLowerCase().includes('relegation') ||
-                        text.toLowerCase().includes('top ') ||
-                        text.toLowerCase().includes('to qualify') ||
-                        text.length < 5 ||
-                        text.length > 100) {
-                        return;
-                    }
+                    // Skip if URL contains 'market/' (outright markets)
+                    if (url.includes('/market/')) return;
 
-                    // Must contain 'v' or '-' for match fixture
-                    if (!text.match(/\\s+(v|vs\\.?|-|at)\\s+/i)) {
-                        return;
-                    }
+                    // Must be a betting URL
+                    if (!url.includes('-betting-')) return;
 
                     seen.add(url);
 
-                    const { eventName, startTime, teamNames } = parseEventText(text);
+                    // Get team names from .runners list
+                    const teamNames = [];
+                    const runnerNames = row.querySelectorAll('.runners .name, ul.runners li.name');
+                    runnerNames.forEach(el => {
+                        const name = el.textContent.trim();
+                        if (name && name.length > 0 && name.length < 50) {
+                            teamNames.push(name);
+                        }
+                    });
 
-                    if (!eventName || eventName.length < 5) return;
+                    // Fallback: parse from URL
+                    if (teamNames.length < 2) {
+                        const urlMatch = url.match(/\\/([^/]+)-v-([^/]+)-betting/i);
+                        if (urlMatch) {
+                            teamNames.push(urlMatch[1].replace(/-/g, ' '));
+                            teamNames.push(urlMatch[2].replace(/-/g, ' '));
+                        }
+                    }
 
-                    // Find container with odds - walk up DOM
-                    let container = link.parentElement;
-                    let odds = { backOdds: [], layOdds: [] };
+                    if (teamNames.length < 2) return;
 
-                    for (let i = 0; i < 8 && container; i++) {
-                        odds = extractOdds(container);
-                        if (odds.backOdds.length > 0 || odds.layOdds.length > 0) break;
-                        container = container.parentElement;
+                    const eventName = teamNames[0] + ' v ' + teamNames[1];
+
+                    // Get start time from the link text (format: "Dec 13 15:00...")
+                    let startTime = null;
+                    const linkText = link.textContent.trim();
+                    const timeMatch = linkText.match(/([A-Z][a-z]{2}\\s+\\d{1,2}\\s+\\d{1,2}:\\d{2})/i);
+                    if (timeMatch) {
+                        startTime = timeMatch[1];
+                    } else {
+                        const simpleTime = linkText.match(/(\\d{1,2}:\\d{2})/);
+                        if (simpleTime) startTime = simpleTime[1];
+                    }
+
+                    // Get odds - look for back/lay buttons in coupon-runners
+                    const backOdds = [];
+                    const layOdds = [];
+
+                    // Back odds - first button in each runner
+                    const couponRunners = row.querySelectorAll('.coupon-runner');
+                    couponRunners.forEach((runner, idx) => {
+                        const buttons = runner.querySelectorAll('button');
+                        if (buttons.length >= 1) {
+                            // First button is back
+                            const backPrice = parseFloat(buttons[0].textContent.trim());
+                            if (!isNaN(backPrice) && backPrice > 1 && backPrice < 1000) {
+                                backOdds.push(backPrice);
+                            }
+                        }
+                        if (buttons.length >= 2) {
+                            // Second button is lay
+                            const layPrice = parseFloat(buttons[1].textContent.trim());
+                            if (!isNaN(layPrice) && layPrice > 1 && layPrice < 1000) {
+                                layOdds.push(layPrice);
+                            }
+                        }
+                    });
+
+                    // Fallback: try other selector patterns
+                    if (backOdds.length === 0) {
+                        row.querySelectorAll('.back button, [class*="back"] button').forEach(btn => {
+                            const price = parseFloat(btn.textContent.trim());
+                            if (!isNaN(price) && price > 1 && price < 1000) {
+                                backOdds.push(price);
+                            }
+                        });
+                    }
+
+                    if (layOdds.length === 0) {
+                        row.querySelectorAll('.lay button, [class*="lay"] button').forEach(btn => {
+                            const price = parseFloat(btn.textContent.trim());
+                            if (!isNaN(price) && price > 1 && price < 1000) {
+                                layOdds.push(price);
+                            }
+                        });
                     }
 
                     // Check if live
-                    const isLive = text.toLowerCase().includes('in-play') ||
-                                  text.toLowerCase().includes('in play') ||
-                                  (container && container.querySelector('[class*="inplay"], [class*="live"]'));
+                    const isLive = row.querySelector('[class*="inplay"], [class*="live"]') !== null ||
+                                  linkText.toLowerCase().includes('in-play');
 
                     events.push({
                         eventName,
-                        teamNames,
+                        teamNames: teamNames.slice(0, 2),
                         competition: '',
                         eventUrl: url,
                         startTime,
                         isLive: !!isLive,
-                        backOdds: odds.backOdds,
-                        layOdds: odds.layOdds,
+                        backOdds: backOdds.slice(0, 3),
+                        layOdds: layOdds.slice(0, 3),
                         scrapeOrder: events.length
                     });
                 });
