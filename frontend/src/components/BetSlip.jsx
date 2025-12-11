@@ -1,29 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { API_BASE } from '../config'
 
-const API_BASE = ''
-
-export default function BetSlip({ bets, onRemove, onUpdateStake, onClear }) {
+export default function BetSlip({ bets, onRemove, onUpdateStake, onClear, balance, onBalanceChange }) {
   const [placing, setPlacing] = useState(false)
   const [message, setMessage] = useState(null)
-  const [balance, setBalance] = useState(null)
-  const [loadingBalance, setLoadingBalance] = useState(true)
-
-  // Fetch balance on mount and after placing bets
-  const fetchBalance = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/balance`)
-      const data = await res.json()
-      setBalance(data.balance)
-    } catch (err) {
-      console.error('Error fetching balance:', err)
-    } finally {
-      setLoadingBalance(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchBalance()
-  }, [])
 
   // Calculate potential return for a bet
   const calculateReturn = (bet) => {
@@ -98,11 +78,15 @@ export default function BetSlip({ bets, onRemove, onUpdateStake, onClear }) {
       }
 
       setMessage({ type: 'success', text: 'Bets placed successfully!' })
-      fetchBalance() // Refresh balance after placing bets
+      // Fetch updated balance
+      try {
+        const balRes = await fetch(`${API_BASE}/api/balance`)
+        const balData = await balRes.json()
+        if (onBalanceChange) onBalanceChange(balData.balance)
+      } catch (e) { /* ignore */ }
       onClear()
     } catch (err) {
       setMessage({ type: 'error', text: err.message || 'Failed to place bets. Please try again.' })
-      fetchBalance() // Refresh balance to show current state
     } finally {
       setPlacing(false)
     }
@@ -110,20 +94,6 @@ export default function BetSlip({ bets, onRemove, onUpdateStake, onClear }) {
 
   return (
     <div className="bg-gray-800 rounded-lg overflow-hidden sticky top-4">
-      {/* Balance Display */}
-      <div className="bg-gray-900 px-4 py-3 border-b border-gray-700">
-        <div className="flex items-center justify-between">
-          <span className="text-gray-400 text-sm">Balance</span>
-          {loadingBalance ? (
-            <span className="text-gray-500 text-sm">Loading...</span>
-          ) : (
-            <span className="text-success font-bold text-lg">
-              £{balance !== null ? balance.toFixed(2) : '0.00'}
-            </span>
-          )}
-        </div>
-      </div>
-
       {/* Header */}
       <div className="bg-betfair-gold px-4 py-3 flex items-center justify-between">
         <h2 className="font-bold text-dark-navy">Bet Slip</h2>

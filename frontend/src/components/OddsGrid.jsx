@@ -2,6 +2,34 @@ import { useState, useEffect } from 'react'
 
 const API_BASE = ''
 
+// Parse event name to separate date/time prefix from actual name
+function parseEventName(rawName) {
+  if (!rawName) return { name: '', dateTime: null }
+
+  // Pattern: "Dec 13 00:10atlanta Hawks v Detroit Pistons" or "Dec 13 00:10 Atlanta Hawks v Detroit Pistons"
+  // Also handles: "14 Dec 19:30 Team A v Team B"
+  const dateTimePatterns = [
+    // "Dec 13 00:10" at start (no space before name)
+    /^([A-Z][a-z]{2}\s+\d{1,2}\s+\d{1,2}:\d{2})(.+)$/,
+    // "14 Dec 19:30" at start
+    /^(\d{1,2}\s+[A-Z][a-z]{2}\s+\d{1,2}:\d{2})\s*(.+)$/,
+    // Just time "19:30" at start
+    /^(\d{1,2}:\d{2})\s*(.+)$/,
+  ]
+
+  for (const pattern of dateTimePatterns) {
+    const match = rawName.match(pattern)
+    if (match) {
+      return {
+        dateTime: match[1].trim(),
+        name: match[2].trim()
+      }
+    }
+  }
+
+  return { name: rawName, dateTime: null }
+}
+
 export default function OddsGrid({ events, onSelectOdds, betSlip, onMatchIntelligence }) {
   const [eventOdds, setEventOdds] = useState({})
   const [loadingOdds, setLoadingOdds] = useState({})
@@ -90,6 +118,11 @@ export default function OddsGrid({ events, onSelectOdds, betSlip, onMatchIntelli
                 paddedOdds.push(null)
               }
 
+              // Parse event name to separate embedded date/time
+              const parsed = parseEventName(event.event_name)
+              const displayName = parsed.name || event.event_name
+              const displayTime = event.start_time || parsed.dateTime
+
               return (
                 <div key={event.id} className="px-4 py-3">
                   {/* Event row */}
@@ -97,16 +130,16 @@ export default function OddsGrid({ events, onSelectOdds, betSlip, onMatchIntelli
                     <div className="col-span-4">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-white">
-                          {event.event_name}
+                          {displayName}
                         </span>
                         {event.is_live === 1 && (
                           <span className="live-indicator">LIVE</span>
                         )}
                       </div>
-                      {event.start_time && (
-                        <span className="text-sm text-gray-400">
-                          {event.start_time}
-                        </span>
+                      {displayTime && (
+                        <div className="text-sm text-gray-400">
+                          {displayTime}
+                        </div>
                       )}
                       {/* Match Intelligence link */}
                       <button

@@ -6,7 +6,7 @@ import AIChatPanel from '../components/AIChatPanel'
 import BetHistory from '../components/BetHistory'
 import { API_BASE } from '../config'
 
-export default function Exchange() {
+export default function Exchange({ balance, onBalanceChange }) {
   const [sports, setSports] = useState([])
   const [selectedSport, setSelectedSport] = useState(null)
   const [events, setEvents] = useState([])
@@ -266,6 +266,8 @@ export default function Exchange() {
           onRemove={removeFromBetSlip}
           onUpdateStake={updateStake}
           onClear={clearBetSlip}
+          balance={balance}
+          onBalanceChange={onBalanceChange}
         />
       </div>
 

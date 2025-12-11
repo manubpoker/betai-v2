@@ -340,19 +340,21 @@ def trigger_scrape():
         if data_type in ('both', 'sportsbook'):
             sb_result = run_sportsbook_scrape()
             results["sportsbook"] = sb_result
-            total += sb_result.get("total", 0)
+            if sb_result:
+                total += sb_result.get("total", 0)
 
         # Run exchange scraper
         if data_type in ('both', 'exchange'):
             ex_result = run_exchange_scrape()
             results["exchange"] = ex_result
-            total += ex_result.get("total", 0)
+            if ex_result:
+                total += ex_result.get("total", 0)
 
         scraper_status["status"] = "idle"
         scraper_status["last_scrape"] = datetime.utcnow().isoformat() + 'Z'
         scraper_status["events_count"] = {
-            "sportsbook": results.get("sportsbook", {}).get("counts", {}),
-            "exchange": results.get("exchange", {}).get("counts", {})
+            "sportsbook": (results.get("sportsbook") or {}).get("counts", {}),
+            "exchange": (results.get("exchange") or {}).get("counts", {})
         }
 
         return jsonify({

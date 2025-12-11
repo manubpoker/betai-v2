@@ -91,7 +91,7 @@ function App() {
         {/* Main content */}
         <main className="container mx-auto px-4 py-6">
           <Routes>
-            <Route path="/" element={<Exchange />} />
+            <Route path="/" element={<Exchange balance={balance} onBalanceChange={setBalance} />} />
             <Route path="/sportsbook" element={<Sportsbook />} />
             <Route path="/casino" element={<Casino />} />
             <Route path="/poker" element={<Poker />} />
