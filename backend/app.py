@@ -1089,43 +1089,56 @@ init_db()
 def run_initial_scrape_background():
     """Run initial scrape in background thread so it doesn't block startup."""
     import time
+    import traceback
     time.sleep(5)  # Give the server a moment to fully start
-    print("Running initial scrape in background (both sportsbook and exchange)...")
+    print("Running initial scrape in background (both sportsbook and exchange)...", flush=True)
     try:
         with app.app_context():
             from scraper import run_full_scrape as run_sportsbook_scrape
             from exchange_scraper import run_exchange_scrape
 
             sb_result = run_sportsbook_scrape()
-            print(f"  Sportsbook: {(sb_result or {}).get('total', 0)} events")
+            print(f"  Sportsbook: {(sb_result or {}).get('total', 0)} events", flush=True)
 
             ex_result = run_exchange_scrape()
-            print(f"  Exchange: {(ex_result or {}).get('total', 0)} events")
+            print(f"  Exchange: {(ex_result or {}).get('total', 0)} events", flush=True)
     except Exception as e:
-        print(f"Initial scrape error: {e}")
+        print(f"Initial scrape error: {e}", flush=True)
+        traceback.print_exc()
 
 # Start scheduler for auto-refresh and bet checking (runs for both gunicorn and direct)
 # Only add jobs if scheduler hasn't been configured yet
-if not scheduler.get_jobs():
-    scheduler.add_job(
-        scheduled_scrape,
-        'interval',
-        minutes=SCRAPE_INTERVAL_MINUTES,
-        id='auto_scrape'
-    )
-    scheduler.add_job(
-        scheduled_bet_check,
-        'interval',
-        minutes=30,  # Check every 30 minutes
-        id='bet_check'
-    )
-    scheduler.start()
-    print(f"Scheduler started: odds refresh every {SCRAPE_INTERVAL_MINUTES} min, bet check every 30 min")
+import sys
 
-    # Run initial scrape in background thread (doesn't block server startup)
-    import threading
-    scrape_thread = threading.Thread(target=run_initial_scrape_background, daemon=True)
-    scrape_thread.start()
+def setup_scheduler_and_scrape():
+    """Initialize scheduler and run initial scrape - called once on startup."""
+    try:
+        if not scheduler.get_jobs():
+            scheduler.add_job(
+                scheduled_scrape,
+                'interval',
+                minutes=SCRAPE_INTERVAL_MINUTES,
+                id='auto_scrape'
+            )
+            scheduler.add_job(
+                scheduled_bet_check,
+                'interval',
+                minutes=30,  # Check every 30 minutes
+                id='bet_check'
+            )
+            scheduler.start()
+            print(f"Scheduler started: odds refresh every {SCRAPE_INTERVAL_MINUTES} min, bet check every 30 min", flush=True)
+
+            # Run initial scrape in background thread (doesn't block server startup)
+            import threading
+            scrape_thread = threading.Thread(target=run_initial_scrape_background, daemon=True)
+            scrape_thread.start()
+            print("Background scrape thread started", flush=True)
+    except Exception as e:
+        print(f"Scheduler setup error: {e}", flush=True)
+
+# Run setup
+setup_scheduler_and_scrape()
 
 if __name__ == '__main__':
     # Start Flask server (for local development)
