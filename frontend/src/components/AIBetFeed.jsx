@@ -7,6 +7,7 @@ export default function AIBetFeed({ isOpen, onClose, onRefresh, onBalanceChange 
   const [generatedAt, setGeneratedAt] = useState(null)
   const [placingBet, setPlacingBet] = useState(null) // track which bet is being placed
   const [betStatus, setBetStatus] = useState({}) // track success/error per recommendation
+  const [expandedReason, setExpandedReason] = useState(null) // track which reason is expanded
 
   // Fetch recommendations
   const fetchRecommendations = async () => {
@@ -106,10 +107,10 @@ export default function AIBetFeed({ isOpen, onClose, onRefresh, onBalanceChange 
 
         {/* Subtitle */}
         <div className="px-4 py-2 bg-gray-900 border-b border-gray-700 text-xs text-gray-400">
-          Back bets only - All sports
+          <span className="text-ai-accent">Powered by Claude AI</span> • Back bets only
           {generatedAt && (
             <span className="ml-2">
-              Updated: {new Date(generatedAt).toLocaleTimeString()}
+              • Updated: {new Date(generatedAt).toLocaleTimeString()}
             </span>
           )}
         </div>
@@ -150,7 +151,21 @@ export default function AIBetFeed({ isOpen, onClose, onRefresh, onBalanceChange 
                         <span className="text-xs text-betfair-gold font-mono">
                           @{rec.odds?.toFixed(2)}
                         </span>
+                        {rec.reason && (
+                          <button
+                            onClick={() => setExpandedReason(expandedReason === index ? null : index)}
+                            className="text-xs text-ai-accent hover:text-ai-accent/80 hover:underline"
+                          >
+                            why?
+                          </button>
+                        )}
                       </div>
+                      {/* Expanded reason */}
+                      {expandedReason === index && rec.reason && (
+                        <div className="mt-2 text-xs text-gray-300 bg-gray-800 rounded px-2 py-1.5 italic">
+                          💡 {rec.reason}
+                        </div>
+                      )}
                     </div>
                     <div className="flex-shrink-0">
                       {betStatus[index] === 'success' ? (

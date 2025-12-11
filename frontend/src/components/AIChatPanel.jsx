@@ -2,14 +2,28 @@ import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { API_BASE } from '../config'
 
+// Store chat state outside component to persist across open/close
+let persistedMessages = []
+let persistedConversationId = null
+
 export default function AIChatPanel({ isOpen, onClose, initialMessage = null, eventContext = null }) {
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState(persistedMessages)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [status, setStatus] = useState({ loading: true, connected: false, model: null })
-  const [conversationId, setConversationId] = useState(null)
+  const [conversationId, setConversationId] = useState(persistedConversationId)
   const [processedInitialMessage, setProcessedInitialMessage] = useState(null)
   const messagesEndRef = useRef(null)
+
+  // Persist messages to module-level state when they change
+  useEffect(() => {
+    persistedMessages = messages
+  }, [messages])
+
+  // Persist conversation ID
+  useEffect(() => {
+    persistedConversationId = conversationId
+  }, [conversationId])
 
   // Check AI status on mount (not just when opened) to maintain permanent connection
   useEffect(() => {
