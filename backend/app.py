@@ -384,7 +384,7 @@ def get_scrape_status():
 
 @app.route('/api/events', methods=['GET'])
 def get_events():
-    """Get all events, optionally filtered by sport and data_type."""
+    """Get all events with odds, optionally filtered by sport and data_type."""
     db = get_db()
     sport = request.args.get('sport')
     data_type = request.args.get('data_type')  # 'exchange' or 'sportsbook'
@@ -403,13 +403,41 @@ def get_events():
 
     where_clause = " AND ".join(conditions) if conditions else "1=1"
 
+    # Get events ordered by competition then start_time for proper grouping
     events = db.execute(f'''
         SELECT * FROM scraped_events
         WHERE {where_clause}
-        ORDER BY sport, start_time ASC
+        ORDER BY sport, competition, start_time ASC
     ''', params).fetchall()
 
-    return jsonify([dict(e) for e in events])
+    # Get all odds in a single query for efficiency
+    event_ids = [e['id'] for e in events]
+    if event_ids:
+        placeholders = ','.join('?' * len(event_ids))
+        all_odds = db.execute(f'''
+            SELECT * FROM scraped_odds
+            WHERE event_id IN ({placeholders})
+            ORDER BY event_id, selection_name
+        ''', event_ids).fetchall()
+
+        # Group odds by event_id
+        odds_by_event = {}
+        for odd in all_odds:
+            eid = odd['event_id']
+            if eid not in odds_by_event:
+                odds_by_event[eid] = []
+            odds_by_event[eid].append(dict(odd))
+    else:
+        odds_by_event = {}
+
+    # Build response with odds included
+    result = []
+    for e in events:
+        event_dict = dict(e)
+        event_dict['odds'] = odds_by_event.get(e['id'], [])
+        result.append(event_dict)
+
+    return jsonify(result)
 
 
 @app.route('/api/events/<int:event_id>', methods=['GET'])
