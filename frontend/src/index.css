@@ -2,11 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base styles */
+/* Base styles - Betfair theme */
 body {
   font-family: 'Inter', system-ui, sans-serif;
-  background-color: #1E1E2D;
-  color: white;
+  background-color: #EBEBEB;
+  color: #333;
   min-height: 100vh;
 }
 
@@ -15,33 +15,54 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - Betfair style */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #2a2a3d;
+  background: #E5E5E5;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #FFB80C;
+  background: #999;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #ffc93c;
+  background: #666;
 }
 
-/* Back bet button hover */
-.back-btn {
-  @apply bg-back-blue hover:bg-back-blue/80 transition-colors;
+/* Back bet cell - Betfair blue gradient */
+.back-cell {
+  @apply bg-back-blue hover:bg-back-blue-deep transition-colors cursor-pointer;
 }
 
-/* Lay bet button hover */
-.lay-btn {
-  @apply bg-lay-pink hover:bg-lay-pink/80 transition-colors;
+.back-cell-deep {
+  @apply bg-back-blue-deep hover:brightness-95 transition-all cursor-pointer;
+}
+
+/* Lay bet cell - Betfair pink gradient */
+.lay-cell {
+  @apply bg-lay-pink hover:bg-lay-pink-deep transition-colors cursor-pointer;
+}
+
+.lay-cell-deep {
+  @apply bg-lay-pink-deep hover:brightness-95 transition-all cursor-pointer;
+}
+
+/* Betfair-style odds button */
+.odds-btn {
+  @apply font-mono text-sm font-bold text-betfair-black py-1 px-2 min-w-[52px] text-center;
+}
+
+.odds-btn:hover {
+  @apply brightness-95;
+}
+
+.odds-btn.selected {
+  @apply ring-2 ring-betfair-black ring-inset;
 }
 
 /* AI chat transition */
@@ -71,13 +92,95 @@ body {
   animation: pulse 1.5s ease-in-out infinite;
 }
 
-/* Live indicator */
+/* Live indicator - Betfair style */
 .live-indicator {
-  @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-error text-white;
+  @apply inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-green-600 text-white uppercase;
 }
 
 .live-indicator::before {
   content: '';
-  @apply w-2 h-2 bg-white rounded-full mr-1;
+  @apply w-1.5 h-1.5 bg-white rounded-full mr-1;
   animation: pulse 1s ease-in-out infinite;
+}
+
+/* Betfair table styles */
+.bf-table {
+  @apply w-full border-collapse;
+}
+
+.bf-table th {
+  @apply bg-header-bg text-betfair-gray text-xs font-semibold uppercase tracking-wide py-2 px-2 text-center;
+}
+
+.bf-table tr:nth-child(even) {
+  @apply bg-row-even;
+}
+
+.bf-table tr:nth-child(odd) {
+  @apply bg-row-odd;
+}
+
+.bf-table td {
+  @apply py-2 px-2 border-b border-gray-200;
+}
+
+/* Competition header - Betfair style */
+.competition-header {
+  @apply bg-betfair-dark text-white px-3 py-2 text-sm font-semibold flex items-center justify-between;
+}
+
+/* Event row hover */
+.event-row {
+  @apply hover:bg-yellow-50 transition-colors;
+}
+
+/* Betfair card style */
+.bf-card {
+  @apply bg-white rounded shadow-sm border border-gray-200 overflow-hidden;
+}
+
+.bf-card-header {
+  @apply bg-betfair-dark text-white px-4 py-3 font-semibold;
+}
+
+/* Sports sidebar item */
+.sport-item {
+  @apply flex items-center justify-between px-3 py-2 text-sm cursor-pointer transition-colors;
+}
+
+.sport-item:hover {
+  @apply bg-gray-100;
+}
+
+.sport-item.active {
+  @apply bg-betfair-yellow text-betfair-black font-semibold;
+}
+
+/* Bet slip styling */
+.betslip-header {
+  @apply bg-betfair-yellow text-betfair-black px-4 py-3 font-bold;
+}
+
+/* Input styling */
+.bf-input {
+  @apply w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-betfair-yellow focus:ring-1 focus:ring-betfair-yellow;
+}
+
+/* Button styles */
+.bf-btn-primary {
+  @apply bg-betfair-yellow text-betfair-black font-bold py-2 px-4 rounded hover:brightness-95 transition-all;
+}
+
+.bf-btn-secondary {
+  @apply bg-betfair-black text-white font-medium py-2 px-4 rounded hover:bg-betfair-dark transition-colors;
+}
+
+/* Market depth indicator */
+.depth-bar {
+  @apply absolute bottom-0 left-0 right-0 h-1 bg-betfair-yellow/30;
+}
+
+/* Suspended market overlay */
+.suspended-overlay {
+  @apply absolute inset-0 bg-gray-500/50 flex items-center justify-center text-white font-bold text-xs;
 }

@@ -186,7 +186,7 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
 
       {/* Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-96 bg-gray-800 shadow-xl z-50
+        className={`fixed top-0 right-0 h-full w-96 bg-white shadow-xl z-50
                    chat-panel ${isOpen ? 'chat-panel-open' : 'chat-panel-closed pointer-events-none'}`}
       >
         {/* Header */}
@@ -197,11 +197,11 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
               <p className="text-sm text-white/70">Checking connection...</p>
             ) : status.connected ? (
               <p className="text-sm text-white/70">
-                Connected to {status.model}
+                {status.model}
               </p>
             ) : (
-              <p className="text-sm text-error">
-                AI Unavailable
+              <p className="text-sm text-red-200">
+                Unavailable
               </p>
             )}
           </div>
@@ -217,22 +217,26 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
 
         {/* Status Banner */}
         {!status.loading && !status.connected && (
-          <div className="bg-error/20 border-l-4 border-error px-4 py-3">
-            <p className="text-error text-sm font-medium">AI Service Unavailable</p>
-            <p className="text-error/70 text-xs mt-1">
+          <div className="bg-red-100 border-l-4 border-red-500 px-4 py-3">
+            <p className="text-red-700 text-sm font-medium">AI Service Unavailable</p>
+            <p className="text-red-600 text-xs mt-1">
               {status.error || 'Please set ANTHROPIC_API_KEY'}
             </p>
           </div>
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 h-[calc(100%-180px)]">
+        <div className="flex-1 overflow-y-auto p-4 h-[calc(100%-180px)] bg-gray-50">
           {messages.length === 0 && !sending ? (
-            <div className="text-center text-gray-400 py-8">
-              <div className="text-4xl mb-4">🤖</div>
-              <p className="font-medium">Hello! I'm BetAI</p>
+            <div className="text-center text-betfair-gray py-8">
+              <div className="w-12 h-12 mx-auto mb-4 bg-ai-accent/10 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-ai-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <p className="font-medium text-betfair-black">BetAI Assistant</p>
               <p className="text-sm mt-2">
-                Ask me about betting odds, strategies, or any questions about sports betting.
+                Ask about betting odds, strategies, or match analysis.
               </p>
             </div>
           ) : (
@@ -253,19 +257,19 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
                       msg.role === 'user'
                         ? 'bg-ai-accent text-white'
                         : msg.role === 'error'
-                          ? 'bg-error/20 text-error'
-                          : 'bg-gray-700 text-white'
+                          ? 'bg-red-100 text-red-700 border border-red-200'
+                          : 'bg-white text-betfair-black border border-gray-200 shadow-sm'
                     }`}
                   >
                     {msg.role === 'assistant' ? (
-                      <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:mt-2 prose-headings:mb-1 prose-code:bg-gray-800 prose-code:px-1 prose-code:rounded prose-pre:bg-gray-900 prose-pre:p-2">
+                      <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:mt-2 prose-headings:mb-1 prose-code:bg-gray-100 prose-code:px-1 prose-code:rounded prose-pre:bg-gray-100 prose-pre:p-2">
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
                       </div>
                     ) : (
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                      <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
                     )}
                     {msg.model && (
-                      <p className="text-xs text-gray-400 mt-2">
+                      <p className="text-xs text-betfair-gray mt-2 pt-2 border-t border-gray-100">
                         via {msg.model}
                       </p>
                     )}
@@ -275,16 +279,16 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
               {/* Searching indicator while AI is working */}
               {sending && (
                 <div className="mr-8">
-                  <div className="rounded-lg p-3 bg-gray-700 text-white">
+                  <div className="rounded-lg p-3 bg-white text-betfair-black border border-gray-200 shadow-sm">
                     <div className="flex items-center gap-2">
                       <svg className="w-4 h-4 animate-spin text-ai-accent" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
-                      <span className="text-gray-300">Searching and analyzing...</span>
+                      <span className="text-betfair-gray text-sm">Analyzing...</span>
                     </div>
                     <p className="text-xs text-gray-400 mt-2">
-                      Querying database, researching teams, calculating odds...
+                      Searching data and generating insights...
                     </p>
                   </div>
                 </div>
@@ -295,24 +299,22 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
         </div>
 
         {/* Input */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gray-800 border-t border-gray-700">
+        <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
           <div className="flex gap-2">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={status.connected ? "Ask me anything..." : "AI unavailable"}
+              placeholder={status.connected ? "Ask anything..." : "AI unavailable"}
               disabled={!status.connected || sending}
-              className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2
-                       text-white placeholder-gray-400 focus:outline-none focus:border-ai-accent
-                       disabled:opacity-50"
+              className="flex-1 bf-input disabled:opacity-50 disabled:bg-gray-100"
             />
             <button
               onClick={sendMessage}
               disabled={!status.connected || sending || !input.trim()}
-              className="px-4 py-2 bg-ai-accent text-white rounded-lg
-                       hover:bg-ai-accent/80 transition-colors disabled:opacity-50"
+              className="px-4 py-2 bg-ai-accent text-white rounded
+                       hover:bg-ai-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {sending ? (
                 <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-
-const API_BASE = ''
+import { API_BASE } from '../config'
 
 export default function BetHistory({ isOpen, onClose }) {
   const [bets, setBets] = useState([])
@@ -63,13 +62,13 @@ export default function BetHistory({ isOpen, onClose }) {
       />
 
       {/* Modal */}
-      <div className="fixed inset-4 md:inset-x-20 md:inset-y-10 bg-gray-800 rounded-lg z-50 flex flex-col overflow-hidden">
+      <div className="fixed inset-4 md:inset-x-20 md:inset-y-10 bg-white rounded-lg z-50 flex flex-col overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="bg-betfair-gold px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-dark-navy">Bet History</h2>
+        <div className="bg-betfair-yellow px-6 py-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-betfair-black">My Bets</h2>
           <button
             onClick={onClose}
-            className="text-dark-navy/70 hover:text-dark-navy"
+            className="text-betfair-black/70 hover:text-betfair-black"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -79,27 +78,27 @@ export default function BetHistory({ isOpen, onClose }) {
 
         {/* Stats Summary */}
         {stats && (
-          <div className="px-6 py-4 bg-gray-900 border-b border-gray-700">
+          <div className="px-6 py-4 bg-betfair-dark">
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="text-center">
-                <p className="text-gray-400 text-xs">Total Bets</p>
-                <p className="text-white text-lg font-bold">{stats.total_bets}</p>
+                <p className="text-white/60 text-xs">Total Bets</p>
+                <p className="text-white text-xl font-bold">{stats.total_bets}</p>
               </div>
               <div className="text-center">
-                <p className="text-gray-400 text-xs">Won</p>
-                <p className="text-success text-lg font-bold">{stats.won}</p>
+                <p className="text-white/60 text-xs">Won</p>
+                <p className="text-green-400 text-xl font-bold">{stats.won}</p>
               </div>
               <div className="text-center">
-                <p className="text-gray-400 text-xs">Lost</p>
-                <p className="text-error text-lg font-bold">{stats.lost}</p>
+                <p className="text-white/60 text-xs">Lost</p>
+                <p className="text-red-400 text-xl font-bold">{stats.lost}</p>
               </div>
               <div className="text-center">
-                <p className="text-gray-400 text-xs">Pending</p>
-                <p className="text-betfair-gold text-lg font-bold">{stats.pending}</p>
+                <p className="text-white/60 text-xs">Pending</p>
+                <p className="text-betfair-yellow text-xl font-bold">{stats.pending}</p>
               </div>
               <div className="text-center">
-                <p className="text-gray-400 text-xs">Net P/L</p>
-                <p className={`text-lg font-bold ${stats.net_profit_loss >= 0 ? 'text-success' : 'text-error'}`}>
+                <p className="text-white/60 text-xs">Net P/L</p>
+                <p className={`text-xl font-bold ${stats.net_profit_loss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {stats.net_profit_loss >= 0 ? '+' : ''}£{stats.net_profit_loss?.toFixed(2) || '0.00'}
                 </p>
               </div>
@@ -108,15 +107,15 @@ export default function BetHistory({ isOpen, onClose }) {
         )}
 
         {/* Filter Tabs */}
-        <div className="px-6 py-3 border-b border-gray-700 flex gap-2">
+        <div className="px-6 py-3 border-b border-gray-200 flex gap-2 bg-gray-50">
           {['all', 'pending', 'won', 'lost'].map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
                 filter === f
-                  ? 'bg-betfair-gold text-dark-navy'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  ? 'bg-betfair-yellow text-betfair-black'
+                  : 'bg-white text-betfair-gray hover:bg-gray-100 border border-gray-200'
               }`}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -125,14 +124,14 @@ export default function BetHistory({ isOpen, onClose }) {
         </div>
 
         {/* Bets List */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
           {loading ? (
             <div className="flex items-center justify-center h-32">
-              <div className="text-gray-400">Loading...</div>
+              <div className="text-betfair-gray">Loading...</div>
             </div>
           ) : filteredBets.length === 0 ? (
             <div className="flex items-center justify-center h-32">
-              <div className="text-gray-400 text-center">
+              <div className="text-betfair-gray text-center">
                 <p>No bets found</p>
                 <p className="text-sm mt-1">Place some bets to see them here</p>
               </div>
@@ -142,48 +141,48 @@ export default function BetHistory({ isOpen, onClose }) {
               {filteredBets.map(bet => (
                 <div
                   key={bet.id}
-                  className={`bg-gray-700 rounded-lg p-4 border-l-4 ${
+                  className={`bg-white rounded-lg p-4 border border-gray-200 border-l-4 shadow-sm ${
                     bet.result === 'won'
-                      ? 'border-success'
+                      ? 'border-l-green-500'
                       : bet.result === 'lost'
-                        ? 'border-error'
-                        : 'border-betfair-gold'
+                        ? 'border-l-red-500'
+                        : 'border-l-betfair-yellow'
                   }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                        <span className={`text-xs px-2 py-0.5 rounded font-bold ${
                           bet.bet_type === 'back'
-                            ? 'bg-back-blue text-dark-navy'
-                            : 'bg-lay-pink text-dark-navy'
+                            ? 'bg-back-blue-deep text-betfair-black'
+                            : 'bg-lay-pink-deep text-betfair-black'
                         }`}>
                           {bet.bet_type?.toUpperCase()}
                         </span>
-                        <span className="font-mono text-betfair-gold font-medium">
+                        <span className="font-mono text-betfair-black font-bold bg-betfair-yellow px-2 py-0.5 rounded text-sm">
                           @{bet.odds?.toFixed(2)}
                         </span>
                         {bet.result && bet.result !== 'pending' && (
-                          <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                          <span className={`text-xs px-2 py-0.5 rounded font-bold ${
                             bet.result === 'won'
-                              ? 'bg-success/20 text-success'
-                              : 'bg-error/20 text-error'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-red-100 text-red-600'
                           }`}>
                             {bet.result.toUpperCase()}
                           </span>
                         )}
                       </div>
-                      <p className="text-white font-medium">{bet.selection_name}</p>
-                      <p className="text-gray-400 text-sm">{bet.event_name}</p>
-                      <p className="text-gray-500 text-xs mt-1">{formatDate(bet.placed_at)}</p>
+                      <p className="text-betfair-black font-medium">{bet.selection_name}</p>
+                      <p className="text-betfair-gray text-sm">{bet.event_name}</p>
+                      <p className="text-gray-400 text-xs mt-1">{formatDate(bet.placed_at)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-gray-400 text-xs">Stake</p>
-                      <p className="text-white font-medium">£{bet.stake?.toFixed(2)}</p>
+                      <p className="text-betfair-gray text-xs">Stake</p>
+                      <p className="text-betfair-black font-bold">£{bet.stake?.toFixed(2)}</p>
                       {bet.profit_loss !== null && bet.profit_loss !== undefined && (
                         <>
-                          <p className="text-gray-400 text-xs mt-2">P/L</p>
-                          <p className={`font-medium ${bet.profit_loss >= 0 ? 'text-success' : 'text-error'}`}>
+                          <p className="text-betfair-gray text-xs mt-2">P/L</p>
+                          <p className={`font-bold ${bet.profit_loss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {bet.profit_loss >= 0 ? '+' : ''}£{bet.profit_loss.toFixed(2)}
                           </p>
                         </>

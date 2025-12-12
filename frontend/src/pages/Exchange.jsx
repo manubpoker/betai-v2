@@ -184,8 +184,8 @@ export default function Exchange({ balance, onBalanceChange }) {
     const now = new Date()
     const diff = Math.round((now - lastUpdated) / 60000)
     if (diff < 1) return 'Just now'
-    if (diff === 1) return '1 minute ago'
-    return `${diff} minutes ago`
+    if (diff === 1) return '1 min ago'
+    return `${diff} mins ago`
   }
 
   // Scraping state
@@ -213,7 +213,7 @@ export default function Exchange({ balance, onBalanceChange }) {
     }
   }
 
-  // Pagination component
+  // Pagination component - Betfair style
   const Pagination = () => {
     if (totalPages <= 1) return null
 
@@ -234,13 +234,13 @@ export default function Exchange({ balance, onBalanceChange }) {
         <button
           key={1}
           onClick={() => setCurrentPage(1)}
-          className="px-3 py-1 rounded bg-gray-700 text-white hover:bg-gray-600"
+          className="px-3 py-1 text-sm border border-gray-300 bg-white hover:bg-gray-50 text-betfair-black"
         >
           1
         </button>
       )
       if (startPage > 2) {
-        pages.push(<span key="ellipsis1" className="px-2 text-gray-500">...</span>)
+        pages.push(<span key="ellipsis1" className="px-2 text-gray-400">...</span>)
       }
     }
 
@@ -250,10 +250,10 @@ export default function Exchange({ balance, onBalanceChange }) {
         <button
           key={i}
           onClick={() => setCurrentPage(i)}
-          className={`px-3 py-1 rounded ${
+          className={`px-3 py-1 text-sm border ${
             i === currentPage
-              ? 'bg-betfair-gold text-dark-navy font-bold'
-              : 'bg-gray-700 text-white hover:bg-gray-600'
+              ? 'bg-betfair-yellow border-betfair-yellow text-betfair-black font-bold'
+              : 'border-gray-300 bg-white hover:bg-gray-50 text-betfair-black'
           }`}
         >
           {i}
@@ -264,13 +264,13 @@ export default function Exchange({ balance, onBalanceChange }) {
     // Last page
     if (endPage < totalPages) {
       if (endPage < totalPages - 1) {
-        pages.push(<span key="ellipsis2" className="px-2 text-gray-500">...</span>)
+        pages.push(<span key="ellipsis2" className="px-2 text-gray-400">...</span>)
       }
       pages.push(
         <button
           key={totalPages}
           onClick={() => setCurrentPage(totalPages)}
-          className="px-3 py-1 rounded bg-gray-700 text-white hover:bg-gray-600"
+          className="px-3 py-1 text-sm border border-gray-300 bg-white hover:bg-gray-50 text-betfair-black"
         >
           {totalPages}
         </button>
@@ -278,30 +278,30 @@ export default function Exchange({ balance, onBalanceChange }) {
     }
 
     return (
-      <div className="flex items-center justify-center gap-2 mt-6 mb-4">
+      <div className="flex items-center justify-center gap-1 py-3">
         <button
           onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
           disabled={currentPage === 1}
-          className="px-3 py-1 rounded bg-gray-700 text-white hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-3 py-1 text-sm border border-gray-300 bg-white hover:bg-gray-50 text-betfair-black disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          &lt;
+          Prev
         </button>
         {pages}
         <button
           onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
           disabled={currentPage === totalPages}
-          className="px-3 py-1 rounded bg-gray-700 text-white hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-3 py-1 text-sm border border-gray-300 bg-white hover:bg-gray-50 text-betfair-black disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          &gt;
+          Next
         </button>
       </div>
     )
   }
 
   return (
-    <div className="flex gap-6">
+    <div className="flex gap-4">
       {/* Sports Sidebar */}
-      <div className="w-48 flex-shrink-0">
+      <div className="w-52 flex-shrink-0">
         <SportsSidebar
           sports={sports}
           selected={selectedSport}
@@ -310,78 +310,81 @@ export default function Exchange({ balance, onBalanceChange }) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-white">
-              Exchange - {selectedSport || 'All Sports'}
-            </h1>
-            <div className="text-sm text-gray-400 mt-1">
-              {events.length} events {totalPages > 1 && `(Page ${currentPage} of ${totalPages})`}
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-gray-400">
-              Updated: <span className="text-betfair-gold">{formatLastUpdated()}</span>
+      <div className="flex-1 min-w-0">
+        {/* Market Header */}
+        <div className="bf-card mb-4">
+          <div className="bg-betfair-dark px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h1 className="text-lg font-bold text-white">
+                {selectedSport || 'All Sports'}
+              </h1>
+              <span className="text-sm text-white/70">
+                {events.length} markets
+              </span>
               {scrapeStatus?.freshness?.is_fresh && (
-                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300">
-                  Live
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-500 text-white">
+                  LIVE
                 </span>
               )}
             </div>
-            <button
-              onClick={() => setIsHistoryOpen(true)}
-              className="px-4 py-2 rounded font-medium text-sm transition-colors bg-gray-700 text-white hover:bg-gray-600"
-            >
-              Bet History
-            </button>
-            <button
-              onClick={handleRefreshOdds}
-              disabled={isRefreshing}
-              className={`px-4 py-2 rounded font-medium text-sm transition-colors ${
-                isRefreshing
-                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                  : 'bg-betfair-gold text-dark-navy hover:bg-betfair-gold/80'
-              }`}
-            >
-              {isRefreshing ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Refreshing...
-                </span>
-              ) : (
-                'Refresh Odds'
-              )}
-            </button>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-white/70">
+                Updated: {formatLastUpdated()}
+              </span>
+              <button
+                onClick={() => setIsHistoryOpen(true)}
+                className="px-3 py-1.5 text-sm font-medium bg-white/10 text-white rounded hover:bg-white/20 transition-colors"
+              >
+                My Bets
+              </button>
+              <button
+                onClick={handleRefreshOdds}
+                disabled={isRefreshing}
+                className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                  isRefreshing
+                    ? 'bg-gray-500 text-white cursor-not-allowed'
+                    : 'bg-betfair-yellow text-betfair-black hover:brightness-95'
+                }`}
+              >
+                {isRefreshing ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Refreshing
+                  </span>
+                ) : (
+                  'Refresh'
+                )}
+              </button>
+            </div>
           </div>
         </div>
+
         {refreshError && (
-          <div className="mb-4 p-3 bg-red-900/50 border border-red-500 rounded text-red-200 text-sm">
+          <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded text-red-700 text-sm">
             {refreshError}
           </div>
         )}
 
         {/* Pagination - Top */}
-        <Pagination />
+        {totalPages > 1 && <Pagination />}
 
         {/* Odds Grid */}
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-gray-400 loading-pulse">Loading events...</div>
+          <div className="bf-card flex items-center justify-center h-64">
+            <div className="text-betfair-gray loading-pulse">Loading markets...</div>
           </div>
         ) : events.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">
-            <p>No events available for {selectedSport}</p>
-            <p className="text-sm mt-2">Data is scraped from Betfair in real-time</p>
+          <div className="bf-card text-center py-12">
+            <p className="text-betfair-gray">No markets available for {selectedSport}</p>
+            <p className="text-sm text-gray-400 mt-2">Data is scraped from Betfair Exchange</p>
             <button
               onClick={handleRefreshOdds}
-              className="mt-4 px-4 py-2 bg-betfair-gold text-dark-navy rounded hover:bg-betfair-gold/80"
+              className="mt-4 bf-btn-primary"
             >
-              Trigger Scrape
+              Refresh Data
             </button>
           </div>
         ) : (
@@ -394,11 +397,11 @@ export default function Exchange({ balance, onBalanceChange }) {
         )}
 
         {/* Pagination - Bottom */}
-        <Pagination />
+        {totalPages > 1 && <Pagination />}
       </div>
 
       {/* Bet Slip */}
-      <div className="w-80 flex-shrink-0">
+      <div className="w-72 flex-shrink-0">
         <BetSlip
           bets={betSlip}
           onRemove={removeFromBetSlip}

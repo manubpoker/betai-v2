@@ -55,54 +55,56 @@ export default function OddsGrid({ events, onSelectOdds, betSlip, onMatchIntelli
   })
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {sortedCompetitions.map((competition) => {
         const compEvents = groupedEvents[competition]
         const isCollapsed = collapsedComps[competition]
 
         return (
-          <div key={competition} className="bg-gray-800 rounded-lg overflow-hidden">
-            {/* Competition header - clickable to collapse */}
+          <div key={competition} className="bf-card overflow-hidden">
+            {/* Competition header - Betfair dark style */}
             <button
               onClick={() => toggleCompetition(competition)}
-              className="w-full bg-gray-700 px-4 py-2 border-b border-gray-600 flex items-center justify-between hover:bg-gray-600 transition-colors"
+              className="w-full competition-header"
             >
               <div className="flex items-center gap-2">
                 <svg
-                  className={`w-4 h-4 text-gray-400 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
+                  className={`w-4 h-4 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
                   fill="none" stroke="currentColor" viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
-                <h3 className="font-medium text-white">{competition}</h3>
+                <span>{competition}</span>
               </div>
-              <span className="text-sm text-gray-400">
-                {compEvents.length} event{compEvents.length !== 1 ? 's' : ''}
+              <span className="text-white/60 text-xs font-normal">
+                {compEvents.length} {compEvents.length === 1 ? 'market' : 'markets'}
               </span>
             </button>
 
             {!isCollapsed && (
-              <>
-                {/* Column headers */}
-                <div className="bg-gray-700/50 px-4 py-2 grid grid-cols-12 gap-2 text-sm text-gray-400">
-                  <div className="col-span-4">Event</div>
-                  <div className="col-span-8">
-                    <div className="grid grid-cols-3 gap-2">
-                      {[0, 1, 2].map((i) => (
-                        <div key={i} className="text-center">
-                          <div className="flex justify-center gap-1 text-xs">
-                            <span className="text-back-blue w-12">Back</span>
-                            <span className="text-lay-pink w-12">Lay</span>
-                          </div>
+              <div>
+                {/* Column headers - Betfair style */}
+                <div className="bg-header-bg border-b border-gray-200">
+                  <div className="grid grid-cols-12 gap-0">
+                    <div className="col-span-5 px-3 py-2 text-xs font-semibold text-betfair-gray uppercase">
+                      Event
+                    </div>
+                    <div className="col-span-7">
+                      <div className="grid grid-cols-6 text-center">
+                        <div className="col-span-3 bg-back-blue/30 py-2 border-l border-white">
+                          <span className="text-xs font-semibold text-betfair-gray uppercase">Back</span>
                         </div>
-                      ))}
+                        <div className="col-span-3 bg-lay-pink/30 py-2 border-l border-white">
+                          <span className="text-xs font-semibold text-betfair-gray uppercase">Lay</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Events list */}
-                <div className="divide-y divide-gray-700">
-                  {compEvents.map((event) => {
+                <div>
+                  {compEvents.map((event, eventIndex) => {
                     const odds = event.odds || []
                     const paddedOdds = [...odds.slice(0, 3)]
                     while (paddedOdds.length < 3) paddedOdds.push(null)
@@ -112,64 +114,96 @@ export default function OddsGrid({ events, onSelectOdds, betSlip, onMatchIntelli
                     const displayTime = event.start_time || parsed.dateTime
 
                     return (
-                      <div key={event.id} className="px-4 py-3">
-                        <div className="grid grid-cols-12 gap-2 items-center">
+                      <div
+                        key={event.id}
+                        className={`event-row border-b border-gray-200 ${eventIndex % 2 === 0 ? 'bg-row-even' : 'bg-row-odd'}`}
+                      >
+                        <div className="grid grid-cols-12 gap-0 items-center">
                           {/* Event info */}
-                          <div className="col-span-4">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-white">{displayName}</span>
-                              {event.is_live === 1 && <span className="live-indicator">LIVE</span>}
+                          <div className="col-span-5 px-3 py-2">
+                            <div className="flex items-start gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-betfair-black text-sm truncate">
+                                    {displayName}
+                                  </span>
+                                  {event.is_live === 1 && (
+                                    <span className="live-indicator">In-Play</span>
+                                  )}
+                                </div>
+                                {displayTime && (
+                                  <div className="text-xs text-betfair-gray mt-0.5">{displayTime}</div>
+                                )}
+                                <button
+                                  onClick={() => onMatchIntelligence && onMatchIntelligence(event, odds)}
+                                  className="text-xs text-ai-accent hover:underline mt-1 flex items-center gap-1"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                  </svg>
+                                  AI Analysis
+                                </button>
+                              </div>
                             </div>
-                            {displayTime && <div className="text-sm text-gray-400">{displayTime}</div>}
-                            <button
-                              onClick={() => onMatchIntelligence && onMatchIntelligence(event, odds)}
-                              className="text-xs text-ai-accent hover:text-ai-accent/80 hover:underline mt-1 flex items-center gap-1"
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                              </svg>
-                              Match Intelligence
-                            </button>
                           </div>
 
-                          {/* Odds */}
-                          <div className="col-span-8">
+                          {/* Odds columns - Betfair style with 3 back + 3 lay */}
+                          <div className="col-span-7">
                             {odds.length > 0 ? (
-                              <div className="grid grid-cols-3 gap-2">
+                              <div className="divide-y divide-gray-100">
                                 {paddedOdds.map((odd, i) => (
-                                  <div key={i} className="flex flex-col">
-                                    <div className="text-xs text-gray-400 text-center truncate mb-1 h-4">
+                                  <div key={i} className="grid grid-cols-6 items-center">
+                                    {/* Selection name */}
+                                    <div className="col-span-2 px-2 py-1.5 text-xs text-betfair-gray truncate border-l border-gray-200">
                                       {odd?.selection_name || '-'}
                                     </div>
-                                    <div className="flex gap-1 justify-center">
-                                      <button
-                                        onClick={() => odd && onSelectOdds(event, odd.selection_name, odd.back_odds, 'back')}
-                                        className={`w-12 py-1.5 rounded font-mono text-xs font-medium transition-colors ${
-                                          odd && isInBetSlip(event.id, odd.selection_name, 'back')
-                                            ? 'bg-back-blue/50 ring-2 ring-back-blue'
-                                            : 'bg-back-blue hover:bg-back-blue/80'
-                                        } text-dark-navy`}
-                                        disabled={!odd?.back_odds}
-                                      >
+
+                                    {/* Back odds - deeper blue for best price */}
+                                    <button
+                                      onClick={() => odd && onSelectOdds(event, odd.selection_name, odd.back_odds, 'back')}
+                                      className={`py-1.5 text-center border-l border-white transition-all ${
+                                        odd && isInBetSlip(event.id, odd.selection_name, 'back')
+                                          ? 'back-cell-deep ring-2 ring-inset ring-betfair-black'
+                                          : 'back-cell-deep'
+                                      }`}
+                                      disabled={!odd?.back_odds}
+                                    >
+                                      <div className="font-mono text-sm font-bold text-betfair-black">
                                         {odd?.back_odds?.toFixed(2) || '-'}
-                                      </button>
-                                      <button
-                                        onClick={() => odd && onSelectOdds(event, odd.selection_name, odd.lay_odds || (odd.back_odds * 1.02), 'lay')}
-                                        className={`w-12 py-1.5 rounded font-mono text-xs font-medium transition-colors ${
-                                          odd && isInBetSlip(event.id, odd.selection_name, 'lay')
-                                            ? 'bg-lay-pink/50 ring-2 ring-lay-pink'
-                                            : 'bg-lay-pink hover:bg-lay-pink/80'
-                                        } text-dark-navy`}
-                                        disabled={!odd?.back_odds}
-                                      >
-                                        {odd?.lay_odds?.toFixed(2) || (odd?.back_odds ? (odd.back_odds * 1.02).toFixed(2) : '-')}
-                                      </button>
+                                      </div>
+                                    </button>
+                                    <div className="back-cell py-1.5 text-center border-l border-white">
+                                      <div className="font-mono text-xs text-betfair-gray">
+                                        {odd?.back_odds ? (odd.back_odds * 1.01).toFixed(2) : '-'}
+                                      </div>
                                     </div>
+
+                                    {/* Lay odds - deeper pink for best price */}
+                                    <div className="lay-cell py-1.5 text-center border-l border-white">
+                                      <div className="font-mono text-xs text-betfair-gray">
+                                        {odd?.lay_odds ? (odd.lay_odds * 0.99).toFixed(2) : (odd?.back_odds ? (odd.back_odds * 1.01).toFixed(2) : '-')}
+                                      </div>
+                                    </div>
+                                    <button
+                                      onClick={() => odd && onSelectOdds(event, odd.selection_name, odd.lay_odds || (odd.back_odds * 1.02), 'lay')}
+                                      className={`py-1.5 text-center border-l border-white transition-all ${
+                                        odd && isInBetSlip(event.id, odd.selection_name, 'lay')
+                                          ? 'lay-cell-deep ring-2 ring-inset ring-betfair-black'
+                                          : 'lay-cell-deep'
+                                      }`}
+                                      disabled={!odd?.back_odds}
+                                    >
+                                      <div className="font-mono text-sm font-bold text-betfair-black">
+                                        {odd?.lay_odds?.toFixed(2) || (odd?.back_odds ? (odd.back_odds * 1.02).toFixed(2) : '-')}
+                                      </div>
+                                    </button>
                                   </div>
                                 ))}
                               </div>
                             ) : (
-                              <div className="text-center text-gray-400 text-sm py-2">No odds available</div>
+                              <div className="text-center text-betfair-gray text-xs py-4 col-span-6">
+                                No odds available
+                              </div>
                             )}
                           </div>
                         </div>
@@ -177,7 +211,7 @@ export default function OddsGrid({ events, onSelectOdds, betSlip, onMatchIntelli
                     )
                   })}
                 </div>
-              </>
+              </div>
             )}
           </div>
         )

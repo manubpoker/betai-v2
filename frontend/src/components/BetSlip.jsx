@@ -93,53 +93,62 @@ export default function BetSlip({ bets, onRemove, onUpdateStake, onClear, balanc
   }
 
   return (
-    <div className="bg-gray-800 rounded-lg overflow-hidden sticky top-4">
-      {/* Header */}
-      <div className="bg-betfair-gold px-4 py-3 flex items-center justify-between">
-        <h2 className="font-bold text-dark-navy">Bet Slip</h2>
+    <div className="bf-card sticky top-4">
+      {/* Header - Betfair yellow */}
+      <div className="betslip-header flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span>Bet Slip</span>
+          {bets.length > 0 && (
+            <span className="bg-betfair-black text-white text-xs px-1.5 py-0.5 rounded">
+              {bets.length}
+            </span>
+          )}
+        </div>
         {bets.length > 0 && (
           <button
             onClick={onClear}
-            className="text-sm text-dark-navy/70 hover:text-dark-navy"
+            className="text-sm text-betfair-black/70 hover:text-betfair-black font-medium"
           >
-            Clear all
+            Clear
           </button>
         )}
       </div>
 
       {/* Bets */}
-      <div className="p-4">
+      <div className="p-3">
         {bets.length === 0 ? (
-          <p className="text-gray-400 text-center py-4">
-            Click on odds to add selections
-          </p>
+          <div className="text-center py-6">
+            <div className="text-betfair-gray text-sm">
+              Click on odds to add selections
+            </div>
+          </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {bets.map((bet) => (
-              <div key={bet.id} className="bg-gray-700 rounded-lg p-3">
+              <div key={bet.id} className="bg-gray-50 rounded border border-gray-200 p-3">
                 {/* Bet header */}
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1 mr-2">
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                      <span className={`text-xs px-2 py-0.5 rounded font-bold ${
                         bet.type === 'back'
-                          ? 'bg-back-blue text-dark-navy'
-                          : 'bg-lay-pink text-dark-navy'
+                          ? 'bg-back-blue-deep text-betfair-black'
+                          : 'bg-lay-pink-deep text-betfair-black'
                       }`}>
                         {bet.type.toUpperCase()}
                       </span>
-                      <span className="font-mono text-betfair-gold font-medium">
+                      <span className="font-mono text-betfair-yellow font-bold bg-betfair-black px-2 py-0.5 rounded text-sm">
                         {bet.odds.toFixed(2)}
                       </span>
                     </div>
-                    <p className="text-white text-sm mt-1">{bet.selection}</p>
-                    <p className="text-gray-400 text-xs">{bet.eventName}</p>
+                    <p className="text-betfair-black font-medium text-sm mt-1">{bet.selection}</p>
+                    <p className="text-betfair-gray text-xs">{bet.eventName}</p>
                   </div>
                   <button
                     onClick={() => onRemove(bet.id)}
-                    className="text-gray-400 hover:text-error"
+                    className="text-gray-400 hover:text-error p-1"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -147,38 +156,37 @@ export default function BetSlip({ bets, onRemove, onUpdateStake, onClear, balanc
 
                 {/* Stake input */}
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-400">£</span>
+                  <span className="text-betfair-gray text-sm">£</span>
                   <input
                     type="number"
                     placeholder="Stake"
                     value={bet.stake}
                     onChange={(e) => onUpdateStake(bet.id, e.target.value)}
-                    className="flex-1 bg-gray-600 border border-gray-500 rounded px-3 py-2
-                             text-white placeholder-gray-400 focus:outline-none focus:border-betfair-gold"
+                    className="bf-input text-sm"
                   />
                 </div>
 
                 {/* Return calculation */}
                 {bet.stake && parseFloat(bet.stake) > 0 && (
-                  <div className="mt-2 text-sm">
+                  <div className="mt-2 text-xs">
                     {bet.type === 'back' ? (
-                      <div className="flex justify-between text-gray-300">
+                      <div className="flex justify-between text-betfair-gray">
                         <span>Potential return:</span>
-                        <span className="text-success font-medium">
+                        <span className="text-success font-bold">
                           £{calculateReturn(bet).toFixed(2)}
                         </span>
                       </div>
                     ) : (
                       <div className="space-y-1">
-                        <div className="flex justify-between text-gray-300">
+                        <div className="flex justify-between text-betfair-gray">
                           <span>Liability:</span>
-                          <span className="text-error font-medium">
+                          <span className="text-error font-bold">
                             £{calculateLiability(bet).toFixed(2)}
                           </span>
                         </div>
-                        <div className="flex justify-between text-gray-300">
+                        <div className="flex justify-between text-betfair-gray">
                           <span>Potential profit:</span>
-                          <span className="text-success font-medium">
+                          <span className="text-success font-bold">
                             £{calculateReturn(bet).toFixed(2)}
                           </span>
                         </div>
@@ -193,21 +201,21 @@ export default function BetSlip({ bets, onRemove, onUpdateStake, onClear, balanc
 
         {/* Totals and place bet */}
         {bets.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-700">
-            <div className="flex justify-between text-gray-300 mb-2">
+          <div className="mt-4 pt-3 border-t border-gray-200">
+            <div className="flex justify-between text-sm text-betfair-gray mb-1">
               <span>Total stake:</span>
-              <span className="font-medium">£{totalStake.toFixed(2)}</span>
+              <span className="font-bold text-betfair-black">£{totalStake.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-gray-300 mb-4">
+            <div className="flex justify-between text-sm text-betfair-gray mb-3">
               <span>Potential return:</span>
-              <span className="font-medium text-success">£{totalReturn.toFixed(2)}</span>
+              <span className="font-bold text-success">£{totalReturn.toFixed(2)}</span>
             </div>
 
             {message && (
-              <div className={`mb-4 p-3 rounded text-sm ${
+              <div className={`mb-3 p-2 rounded text-xs font-medium ${
                 message.type === 'success'
-                  ? 'bg-success/20 text-success'
-                  : 'bg-error/20 text-error'
+                  ? 'bg-green-100 text-green-700 border border-green-200'
+                  : 'bg-red-100 text-red-700 border border-red-200'
               }`}>
                 {message.text}
               </div>
@@ -216,10 +224,19 @@ export default function BetSlip({ bets, onRemove, onUpdateStake, onClear, balanc
             <button
               onClick={placeBets}
               disabled={placing}
-              className="w-full py-3 bg-betfair-gold text-dark-navy font-bold rounded-lg
-                       hover:bg-betfair-gold/80 transition-colors disabled:opacity-50"
+              className="w-full bf-btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {placing ? 'Placing...' : 'Place Bets'}
+              {placing ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Placing...
+                </span>
+              ) : (
+                'Place Bets'
+              )}
             </button>
           </div>
         )}

@@ -75,14 +75,14 @@ export default function AIBetFeed({ isOpen, onClose, onRefresh, onBalanceChange 
       />
 
       {/* Panel - slides in from left */}
-      <div className="fixed top-0 left-0 h-full w-96 bg-gray-800 shadow-xl z-50 flex flex-col">
+      <div className="fixed top-0 left-0 h-full w-96 bg-white shadow-xl z-50 flex flex-col">
         {/* Header */}
         <div className="bg-ai-accent px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            <h2 className="font-bold text-white">AI Bet Feed</h2>
+            <h2 className="font-bold text-white">AI Picks</h2>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -106,20 +106,20 @@ export default function AIBetFeed({ isOpen, onClose, onRefresh, onBalanceChange 
         </div>
 
         {/* Subtitle */}
-        <div className="px-4 py-2 bg-gray-900 border-b border-gray-700 text-xs text-gray-400">
-          <span className="text-ai-accent">Powered by Opus 4.5</span> • Back bets only
+        <div className="px-4 py-2 bg-gray-100 border-b border-gray-200 text-xs text-betfair-gray">
+          <span className="text-ai-accent font-medium">Powered by Opus 4.5</span> • Back bets only
           {generatedAt && (
             <span className="ml-2">
-              • Updated: {new Date(generatedAt).toLocaleTimeString()}
+              • {new Date(generatedAt).toLocaleTimeString()}
             </span>
           )}
         </div>
 
         {/* Recommendations List */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
           {loading ? (
             <div className="flex items-center justify-center h-32">
-              <div className="flex items-center gap-2 text-gray-400">
+              <div className="flex items-center gap-2 text-betfair-gray">
                 <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -128,7 +128,7 @@ export default function AIBetFeed({ isOpen, onClose, onRefresh, onBalanceChange 
               </div>
             </div>
           ) : recommendations.length === 0 ? (
-            <div className="text-center text-gray-400 py-8">
+            <div className="text-center text-betfair-gray py-8">
               <p>No recommendations available</p>
               <p className="text-sm mt-1">Refresh odds to get new picks</p>
             </div>
@@ -137,24 +137,24 @@ export default function AIBetFeed({ isOpen, onClose, onRefresh, onBalanceChange 
               {recommendations.map((rec, index) => (
                 <div
                   key={index}
-                  className="bg-gray-700 rounded-lg p-3 border-l-4 border-ai-accent hover:bg-gray-650 transition-colors"
+                  className="bg-white rounded-lg p-3 border border-gray-200 border-l-4 border-l-ai-accent shadow-sm hover:shadow transition-shadow"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
-                      <p className="text-white text-sm font-medium">
+                      <p className="text-betfair-black text-sm font-medium">
                         {rec.text}
                       </p>
                       <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs px-2 py-0.5 rounded bg-gray-600 text-gray-300">
+                        <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-betfair-gray">
                           {rec.sport}
                         </span>
-                        <span className="text-xs text-betfair-gold font-mono">
+                        <span className="text-xs text-betfair-black font-mono font-bold bg-betfair-yellow px-1.5 py-0.5 rounded">
                           @{rec.odds?.toFixed(2)}
                         </span>
                         {rec.reason && (
                           <button
                             onClick={() => setExpandedReason(expandedReason === index ? null : index)}
-                            className="text-xs text-ai-accent hover:text-ai-accent/80 hover:underline"
+                            className="text-xs text-ai-accent hover:underline"
                           >
                             why?
                           </button>
@@ -162,18 +162,18 @@ export default function AIBetFeed({ isOpen, onClose, onRefresh, onBalanceChange 
                       </div>
                       {/* Expanded reason */}
                       {expandedReason === index && rec.reason && (
-                        <div className="mt-2 text-xs text-gray-300 bg-gray-800 rounded px-2 py-1.5 italic">
-                          💡 {rec.reason}
+                        <div className="mt-2 text-xs text-betfair-gray bg-gray-50 rounded px-2 py-1.5 border border-gray-100">
+                          {rec.reason}
                         </div>
                       )}
                     </div>
                     <div className="flex-shrink-0">
                       {betStatus[index] === 'success' ? (
-                        <span className="text-xs px-3 py-1.5 rounded bg-success/20 text-success font-medium">
+                        <span className="text-xs px-3 py-1.5 rounded bg-green-100 text-green-700 font-medium border border-green-200">
                           Placed!
                         </span>
                       ) : betStatus[index] ? (
-                        <span className="text-xs px-2 py-1 rounded bg-error/20 text-error">
+                        <span className="text-xs px-2 py-1 rounded bg-red-100 text-red-600 border border-red-200">
                           {betStatus[index]}
                         </span>
                       ) : (
@@ -182,8 +182,8 @@ export default function AIBetFeed({ isOpen, onClose, onRefresh, onBalanceChange 
                           disabled={placingBet === index}
                           className={`text-xs px-3 py-1.5 rounded font-medium transition-colors ${
                             placingBet === index
-                              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                              : 'bg-back-blue text-dark-navy hover:bg-back-blue/80'
+                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                              : 'bg-back-blue-deep text-betfair-black hover:brightness-95'
                           }`}
                         >
                           {placingBet === index ? (
@@ -208,8 +208,8 @@ export default function AIBetFeed({ isOpen, onClose, onRefresh, onBalanceChange 
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 bg-gray-900 border-t border-gray-700">
-          <p className="text-xs text-gray-500 text-center">
+        <div className="px-4 py-3 bg-gray-100 border-t border-gray-200">
+          <p className="text-xs text-betfair-gray text-center">
             AI recommendations are for entertainment only.
             <br />Gamble responsibly.
           </p>
