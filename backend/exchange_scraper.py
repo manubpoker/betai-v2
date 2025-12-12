@@ -239,9 +239,15 @@ def scrape_competition_page(page: Page, sport: str, url: str, competition: str, 
                         });
                     }
 
-                    // Check if live
-                    const isLive = row.querySelector('[class*="inplay"], [class*="live"]') !== null ||
-                                  linkText.toLowerCase().includes('in-play');
+                    // Check if live - be more specific to avoid false positives
+                    // Look for specific in-play indicators: "inplay-indicator", "icon-inplay", actual "In-Play" text
+                    const inplayIndicator = row.querySelector('.inplay-indicator, .icon-inplay, [data-inplay="true"]');
+                    const hasInPlayText = linkText.toLowerCase().includes('in-play') ||
+                                         linkText.toLowerCase().includes('in play') ||
+                                         row.textContent.toLowerCase().includes('in-play');
+                    // Also check for specific time indicators that mean NOT live
+                    const hasTimeIndicator = /\\d{1,2}:\\d{2}/.test(linkText) && !hasInPlayText;
+                    const isLive = (inplayIndicator !== null || hasInPlayText) && !hasTimeIndicator;
 
                     events.push({
                         eventName,
