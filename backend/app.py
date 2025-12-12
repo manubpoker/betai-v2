@@ -12,14 +12,30 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 # Create Flask app
 app = Flask(__name__)
-# CORS configuration - allow localhost for dev and production domains
-CORS(app, origins=[
-    "http://localhost:*",
-    "http://127.0.0.1:*",
-    "https://*.vercel.app",
-    "https://betai-v2.vercel.app"
-], supports_credentials=True)
-CORS(app)  # Allow all origins in development
+
+# CORS configuration - allow all origins
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=False)
+
+# Ensure CORS headers are always present, even on errors
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, PUT, DELETE'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    return response
+
+# Handle errors with CORS headers
+@app.errorhandler(500)
+def handle_500(e):
+    response = jsonify({"error": "Internal server error", "details": str(e)})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response, 500
+
+@app.errorhandler(404)
+def handle_404(e):
+    response = jsonify({"error": "Not found"})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response, 404
 
 # Configuration
 DATABASE = os.path.join(os.path.dirname(__file__), 'betai.db')
