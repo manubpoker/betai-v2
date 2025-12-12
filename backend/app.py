@@ -1132,6 +1132,247 @@ You MAY use web_search to research team form, injuries, or news to inform your a
 
 
 # ============================================================
+# GEMINI DEEP RESEARCH ENDPOINT
+# ============================================================
+
+@app.route('/api/ai/deep-research/<int:event_id>', methods=['POST'])
+def deep_research(event_id):
+    """
+    Run Gemini deep research agent on a match.
+    Uses google-genai deep-research-pro agent (background polling).
+    Cost: ~$2 per research query.
+    """
+    import time as time_module
+
+    db = get_db()
+
+    # Get event details
+    event = db.execute('''
+        SELECT e.*, GROUP_CONCAT(o.selection_name || ':' || COALESCE(o.back_odds, 0) || ':' || COALESCE(o.lay_odds, 0)) as odds_str
+        FROM scraped_events e
+        LEFT JOIN scraped_odds o ON e.id = o.event_id
+        WHERE e.id = ?
+        GROUP BY e.id
+    ''', (event_id,)).fetchone()
+
+    if not event:
+        return jsonify({"success": False, "error": "Event not found"}), 404
+
+    # Check for Gemini API key
+    gemini_key = os.environ.get("GEMINI_API_KEY")
+    if not gemini_key:
+        return jsonify({"success": False, "error": "GEMINI_API_KEY not configured"}), 500
+
+    # Build research query
+    event_name = event['event_name']
+    sport = event['sport']
+    competition = event['competition'] or 'Unknown'
+    start_time = event['start_time'] or 'Unknown'
+    is_live = event['is_live'] == 1
+    today_date = datetime.utcnow().strftime('%Y-%m-%d')
+
+    # Parse odds
+    odds_info = ""
+    if event['odds_str']:
+        odds_parts = event['odds_str'].split(',')
+        for part in odds_parts:
+            try:
+                sel, back, lay = part.split(':')
+                odds_info += f"- {sel}: Back {back}, Lay {lay}\n"
+            except:
+                pass
+
+    # Build comprehensive research query with all available context
+    status_text = "IN-PLAY (live match)" if is_live else f"Scheduled: {start_time}"
+
+    research_query = f"""Research and analyze this sports match for betting value on Betfair Exchange.
+
+EVENT DETAILS:
+- Match: {event_name}
+- Sport: {sport}
+- Competition: {competition}
+- Status: {status_text}
+- Research Date: {today_date}
+
+CURRENT BETFAIR EXCHANGE ODDS:
+{odds_info if odds_info else "No odds available yet"}
+
+RESEARCH REQUIREMENTS:
+Please provide comprehensive research covering:
+
+1. TEAM/PLAYER FORM
+   - Last 5-10 match results for each team/player
+   - Goals/points scored and conceded
+   - Home vs away form differences
+
+2. HEAD-TO-HEAD RECORD
+   - Recent meetings between these teams/players
+   - Historical patterns in this matchup
+
+3. SQUAD/PLAYER NEWS
+   - Key injuries, suspensions, or absences
+   - Expected lineups/starting formations
+   - Recent transfers or returning players
+
+4. COMPETITION CONTEXT
+   - Current standings in {competition}
+   - Historical performance in this competition
+   - Motivation factors (title race, relegation, etc.)
+
+5. EXTERNAL FACTORS
+   - Weather conditions if relevant (outdoor sports)
+   - Travel distance and fixture congestion
+   - Referee/official assignments if available
+
+6. VALUE ASSESSMENT
+   - Compare current odds to implied probabilities
+   - Identify potential value bets (odds too high/low)
+   - Risk assessment for each betting option
+
+Please provide specific statistics, dates, and cite your sources. Focus on information relevant to {today_date} and this specific matchup."""
+
+    try:
+        from google import genai
+
+        # Initialize Gemini client
+        client = genai.Client(api_key=gemini_key)
+
+        print(f"Starting Gemini deep research for event {event_id}: {event_name}", flush=True)
+
+        # Start the research task in the background
+        interaction = client.aio.interactions.create(
+            agent="deep-research-pro-preview-12-2025",
+            input=research_query,
+            background=True
+        )
+
+        # Poll for results (max 5 minutes)
+        max_wait = 300  # 5 minutes
+        poll_interval = 10  # 10 seconds
+        elapsed = 0
+        result_text = None
+
+        while elapsed < max_wait:
+            time_module.sleep(poll_interval)
+            elapsed += poll_interval
+
+            # Check status
+            status = client.aio.interactions.get(interaction.id)
+
+            if hasattr(status, 'output') and status.output:
+                result_text = status.output
+                break
+            elif hasattr(status, 'status') and status.status == 'FAILED':
+                return jsonify({
+                    "success": False,
+                    "error": "Research failed",
+                    "event_id": event_id
+                }), 500
+
+            print(f"  Deep research polling... {elapsed}s elapsed", flush=True)
+
+        if not result_text:
+            return jsonify({
+                "success": False,
+                "error": "Research timed out after 5 minutes",
+                "event_id": event_id
+            }), 504
+
+        # Save to database
+        timestamp = datetime.utcnow().isoformat() + 'Z'
+
+        # Create a conversation for this deep research
+        db.execute('''
+            INSERT INTO ai_conversations (created_at, conversation_type, event_id, event_name)
+            VALUES (?, 'deep_research', ?, ?)
+        ''', (timestamp, event_id, event_name))
+        db.commit()
+        conv_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        # Save the query and response as messages
+        db.execute('''
+            INSERT INTO ai_messages (conversation_id, role, content, model_used, response_source, created_at)
+            VALUES (?, 'user', ?, 'gemini-deep-research', 'gemini_api', ?)
+        ''', (conv_id, research_query, timestamp))
+
+        db.execute('''
+            INSERT INTO ai_messages (conversation_id, role, content, model_used, response_source, created_at)
+            VALUES (?, 'assistant', ?, 'gemini-deep-research-pro', 'gemini_api', ?)
+        ''', (conv_id, result_text, timestamp))
+        db.commit()
+
+        print(f"Deep research complete for event {event_id}", flush=True)
+
+        return jsonify({
+            "success": True,
+            "event_id": event_id,
+            "event_name": event_name,
+            "research": result_text,
+            "conversation_id": conv_id,
+            "model": "gemini-deep-research-pro",
+            "completed_at": timestamp
+        })
+
+    except ImportError:
+        return jsonify({
+            "success": False,
+            "error": "google-genai package not installed. Run: pip install google-genai"
+        }), 500
+    except Exception as e:
+        print(f"Deep research error: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "event_id": event_id
+        }), 500
+
+
+@app.route('/api/ai/deep-research/history/<int:event_id>', methods=['GET'])
+def get_deep_research_history(event_id):
+    """Get all deep research results for an event."""
+    db = get_db()
+
+    conversations = db.execute('''
+        SELECT c.id, c.created_at, c.event_name
+        FROM ai_conversations c
+        WHERE c.conversation_type = 'deep_research'
+        AND c.event_id = ?
+        ORDER BY c.created_at DESC
+    ''', (event_id,)).fetchall()
+
+    result = []
+    for conv in conversations:
+        messages = db.execute('''
+            SELECT role, content, model_used, created_at
+            FROM ai_messages
+            WHERE conversation_id = ?
+            ORDER BY created_at ASC
+        ''', (conv['id'],)).fetchall()
+
+        # Get the research result (assistant message)
+        research_content = None
+        for msg in messages:
+            if msg['role'] == 'assistant':
+                research_content = msg['content']
+                break
+
+        result.append({
+            'id': conv['id'],
+            'created_at': conv['created_at'],
+            'event_name': conv['event_name'],
+            'research': research_content
+        })
+
+    return jsonify({
+        "event_id": event_id,
+        "results": result,
+        "count": len(result)
+    })
+
+
+# ============================================================
 # AI CHAT ENDPOINTS
 # ============================================================
 

@@ -239,15 +239,16 @@ def scrape_competition_page(page: Page, sport: str, url: str, competition: str, 
                         });
                     }
 
-                    // Check if live - be more specific to avoid false positives
-                    // Look for specific in-play indicators: "inplay-indicator", "icon-inplay", actual "In-Play" text
-                    const inplayIndicator = row.querySelector('.inplay-indicator, .icon-inplay, [data-inplay="true"]');
-                    const hasInPlayText = linkText.toLowerCase().includes('in-play') ||
-                                         linkText.toLowerCase().includes('in play') ||
-                                         row.textContent.toLowerCase().includes('in-play');
-                    // Also check for specific time indicators that mean NOT live
-                    const hasTimeIndicator = /\\d{1,2}:\\d{2}/.test(linkText) && !hasInPlayText;
-                    const isLive = (inplayIndicator !== null || hasInPlayText) && !hasTimeIndicator;
+                    // Check if live - VERY conservative detection
+                    // Default to NOT LIVE - only mark live if explicitly indicated
+                    // Look for specific in-play indicator elements directly in the row
+                    const inplayIndicator = row.querySelector('.inplay-indicator, .icon-inplay, [data-inplay="true"], .event-status-inplay');
+                    // Only check link text for "In-Play" (exact match pattern)
+                    const linkHasInPlay = /^In-Play\s/i.test(linkText) || /\sIn-Play$/i.test(linkText);
+                    // If there's a time like "15:00" or "Dec 13 15:00", it's NOT live
+                    const hasScheduledTime = /\d{1,2}:\d{2}/.test(linkText) || /[A-Z][a-z]{2}\s+\d{1,2}/.test(linkText);
+                    // Only mark as live if indicator found AND no scheduled time
+                    const isLive = (inplayIndicator !== null || linkHasInPlay) && !hasScheduledTime;
 
                     events.push({
                         eventName,
@@ -370,6 +371,10 @@ def save_exchange_events_to_db(events: List[Dict[str, Any]]) -> int:
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
     saved_count = 0
+
+    # Reset all is_live flags to 0 before updating - ensures stale live status is cleared
+    cursor.execute('UPDATE scraped_events SET is_live = 0, status = "upcoming" WHERE data_type = "exchange"')
+    conn.commit()
 
     for event in events:
         if event.get('data_type') != 'exchange':

@@ -17,6 +17,9 @@ playwright>=1.40.0
 # Claude AI
 anthropic>=0.18.0
 
+# Gemini AI (for deep research)
+google-genai>=1.0.0
+
 # Utilities
 python-dateutil>=2.8.2
 requests>=2.31.0

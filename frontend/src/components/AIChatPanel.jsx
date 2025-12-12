@@ -13,6 +13,7 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
   const [status, setStatus] = useState({ loading: true, connected: false, model: null })
   const [conversationId, setConversationId] = useState(persistedConversationId)
   const [processedInitialMessage, setProcessedInitialMessage] = useState(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const messagesEndRef = useRef(null)
 
   // Persist messages to module-level state when they change
@@ -186,8 +187,9 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
 
       {/* Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-96 bg-white shadow-xl z-50
-                   chat-panel ${isOpen ? 'chat-panel-open' : 'chat-panel-closed pointer-events-none'}`}
+        className={`fixed top-0 right-0 h-full bg-white shadow-xl z-50 transition-all duration-300
+                   chat-panel ${isOpen ? 'chat-panel-open' : 'chat-panel-closed pointer-events-none'}
+                   ${isFullscreen ? 'w-full' : 'w-[600px]'}`}
       >
         {/* Header */}
         <div className="bg-ai-accent px-4 py-3 flex items-center justify-between">
@@ -205,14 +207,33 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
               </p>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="text-white/70 hover:text-white"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Fullscreen toggle */}
+            <button
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="text-white/70 hover:text-white p-1"
+              title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            >
+              {isFullscreen ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                </svg>
+              )}
+            </button>
+            {/* Close button */}
+            <button
+              onClick={onClose}
+              className="text-white/70 hover:text-white"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Status Banner */}
@@ -227,31 +248,32 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 h-[calc(100%-180px)] bg-gray-50">
-          {messages.length === 0 && !sending ? (
-            <div className="text-center text-betfair-gray py-8">
-              <div className="w-12 h-12 mx-auto mb-4 bg-ai-accent/10 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-ai-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
+          <div className={`mx-auto ${isFullscreen ? 'max-w-4xl' : ''}`}>
+            {messages.length === 0 && !sending ? (
+              <div className="text-center text-betfair-gray py-8">
+                <div className="w-12 h-12 mx-auto mb-4 bg-ai-accent/10 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-ai-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <p className="font-medium text-betfair-black">BetAI Assistant</p>
+                <p className="text-sm mt-2">
+                  Ask about betting odds, strategies, or match analysis.
+                </p>
               </div>
-              <p className="font-medium text-betfair-black">BetAI Assistant</p>
-              <p className="text-sm mt-2">
-                Ask about betting odds, strategies, or match analysis.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`${
-                    msg.role === 'user'
-                      ? 'ml-8'
-                      : msg.role === 'error'
-                        ? 'mr-8'
-                        : 'mr-8'
-                  }`}
-                >
+            ) : (
+              <div className="space-y-4">
+                {messages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={`${
+                      msg.role === 'user'
+                        ? 'ml-8'
+                        : msg.role === 'error'
+                          ? 'mr-8'
+                          : 'mr-8'
+                    }`}
+                  >
                   <div
                     className={`rounded-lg p-3 ${
                       msg.role === 'user'
@@ -296,11 +318,12 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
               <div ref={messagesEndRef} />
             </div>
           )}
+          </div>
         </div>
 
         {/* Input */}
         <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
-          <div className="flex gap-2">
+          <div className={`flex gap-2 mx-auto ${isFullscreen ? 'max-w-4xl' : ''}`}>
             <input
               type="text"
               value={input}
