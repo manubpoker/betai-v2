@@ -1135,7 +1135,7 @@ You MAY use web_search to research team form, injuries, or news to inform your a
 # GEMINI DEEP RESEARCH ENDPOINT (Streaming with Progress)
 # ============================================================
 
-@app.route('/api/ai/deep-research/<int:event_id>', methods=['POST'])
+@app.route('/api/ai/deep-research/<int:event_id>', methods=['POST', 'OPTIONS'])
 def deep_research(event_id):
     """
     Run Gemini deep research agent on a match with streaming progress.
@@ -1147,10 +1147,22 @@ def deep_research(event_id):
     import time as time_module
     import json as json_module
 
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        response = Response()
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+
     db = get_db()
 
     # Get event data from request body (more reliable than DB lookup)
-    request_data = request.get_json() or {}
+    try:
+        request_data = request.get_json() or {}
+    except Exception as e:
+        print(f"Error parsing request JSON: {e}", flush=True)
+        request_data = {}
     event_from_request = request_data.get('event')
 
     # Try DB first
@@ -1165,6 +1177,39 @@ def deep_research(event_id):
     # Fall back to request data if DB lookup fails
     if not event and not event_from_request:
         return jsonify({"success": False, "error": "Event not found. Please refresh the page."}), 404
+
+    # Check for cached research (within last 24 hours) to avoid duplicate costs
+    cached_research = db.execute('''
+        SELECT c.id, m.content, c.created_at
+        FROM ai_conversations c
+        JOIN ai_messages m ON c.id = m.conversation_id
+        WHERE c.conversation_type = 'deep_research'
+        AND c.event_id = ?
+        AND m.role = 'assistant'
+        AND datetime(c.created_at) > datetime('now', '-24 hours')
+        ORDER BY c.created_at DESC
+        LIMIT 1
+    ''', (event_id,)).fetchone()
+
+    if cached_research:
+        # Return cached result immediately (no cost)
+        import json as json_module
+        from flask import Response
+
+        def cached_response():
+            yield f"data: {json_module.dumps({'type': 'progress', 'message': 'Found cached research (no charge)', 'icon': 'check', 'step': 1})}\n\n"
+            yield f"data: {json_module.dumps({'type': 'complete', 'research': cached_research['content'], 'conversation_id': cached_research['id'], 'model': 'gemini-deep-research-pro (cached)', 'event_name': event_from_request.get('event_name', 'Match') if event_from_request else event['event_name'], 'cached': True})}\n\n"
+
+        return Response(
+            cached_response(),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no',
+                'Connection': 'keep-alive',
+                'Access-Control-Allow-Origin': '*'
+            }
+        )
 
     # Check for Gemini API key
     gemini_key = os.environ.get("GEMINI_API_KEY")
@@ -1374,7 +1419,8 @@ Please provide specific statistics, dates, and cite your sources. Focus on infor
         headers={
             'Cache-Control': 'no-cache',
             'X-Accel-Buffering': 'no',
-            'Connection': 'keep-alive'
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*'
         }
     )
 

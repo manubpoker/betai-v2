@@ -6,7 +6,7 @@ import { API_BASE } from '../config'
 let persistedMessages = []
 let persistedConversationId = null
 
-export default function AIChatPanel({ isOpen, onClose, initialMessage = null, eventContext = null }) {
+export default function AIChatPanel({ isOpen, onClose, initialMessage = null, eventContext = null, balance = 0, onBalanceChange = null }) {
   const [messages, setMessages] = useState(persistedMessages)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -137,10 +137,15 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
                       progress: [...(msg.progress || []), data]
                     }
                   } else if (data.type === 'complete') {
+                    // Refund balance if result was cached
+                    if (data.cached && onBalanceChange) {
+                      onBalanceChange(balance + 2) // Refund £2
+                    }
                     return {
                       ...msg,
                       research: data.research,
-                      model: data.model
+                      model: data.model,
+                      cached: data.cached
                     }
                   } else if (data.type === 'error') {
                     return {
@@ -418,6 +423,7 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
                         <div>
                           <div className="flex items-center gap-2 text-green-700 font-medium mb-3">
                             <span>✅</span> Research Complete
+                            {msg.cached && <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full ml-2">Cached - No charge</span>}
                           </div>
                           <div className="prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-headings:mt-3 prose-headings:mb-2 bg-white rounded-lg p-4 border border-amber-100">
                             <ReactMarkdown>{msg.research}</ReactMarkdown>

@@ -483,6 +483,8 @@ Analyze recent form, head-to-head, team news, and identify any value betting opp
         }}
         initialMessage={chatInitialMessage}
         eventContext={chatEventContext}
+        balance={balance}
+        onBalanceChange={onBalanceChange}
       />
 
       {/* Bet History Modal */}
