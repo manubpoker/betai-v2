@@ -62,15 +62,113 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
 
   // Auto-send initial message when panel opens with one
   useEffect(() => {
-    if (isOpen && initialMessage && status.connected && initialMessage !== processedInitialMessage) {
+    if (isOpen && initialMessage && initialMessage !== processedInitialMessage) {
       setProcessedInitialMessage(initialMessage)
-      // Start a new conversation for Match Intelligence
+      // Start a new conversation
       setMessages([])
       setConversationId(null)
-      // Auto-send the message
-      sendMessageWithContext(initialMessage, eventContext)
+
+      // Check if this is a deep research request
+      if (eventContext?.deep_research) {
+        // Handle deep research with SSE streaming
+        startDeepResearch(eventContext)
+      } else if (status.connected) {
+        // Regular AI chat
+        sendMessageWithContext(initialMessage, eventContext)
+      }
     }
-  }, [isOpen, initialMessage, status.connected])
+  }, [isOpen, initialMessage, status.connected, eventContext])
+
+  // Deep research with SSE streaming
+  const startDeepResearch = async (context) => {
+    setSending(true)
+
+    // Add initial message
+    setMessages([{
+      role: 'user',
+      content: `🔬 **Deep Research Request**\n\n**Match:** ${context.event_name}\n**Competition:** ${context.competition || 'Unknown'}\n**Sport:** ${context.sport || 'Football'}\n**Date:** ${context.research_date}`
+    }])
+
+    // Add progress message
+    const progressId = Date.now()
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: '',
+      isDeepResearch: true,
+      progressId,
+      progress: [],
+      research: null,
+      error: null
+    }])
+
+    try {
+      const eventSource = new EventSource(`${API_BASE}/api/ai/deep-research/${context.event_id}`)
+
+      // We need to POST the event data, but EventSource only supports GET
+      // So we'll use fetch with streaming instead
+      const response = await fetch(`${API_BASE}/api/ai/deep-research/${context.event_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: context })
+      })
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+
+              setMessages(prev => prev.map(msg => {
+                if (msg.progressId === progressId) {
+                  if (data.type === 'progress') {
+                    return {
+                      ...msg,
+                      progress: [...(msg.progress || []), data]
+                    }
+                  } else if (data.type === 'complete') {
+                    return {
+                      ...msg,
+                      research: data.research,
+                      model: data.model
+                    }
+                  } else if (data.type === 'error') {
+                    return {
+                      ...msg,
+                      error: data.message
+                    }
+                  }
+                }
+                return msg
+              }))
+            } catch (e) {
+              console.error('Error parsing SSE data:', e)
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Deep research error:', err)
+      setMessages(prev => prev.map(msg => {
+        if (msg.progressId === progressId) {
+          return { ...msg, error: 'Failed to connect to research service' }
+        }
+        return msg
+      }))
+    } finally {
+      setSending(false)
+    }
+  }
 
   // Send message with optional event context
   const sendMessageWithContext = async (messageText, context = null) => {
@@ -274,28 +372,108 @@ export default function AIChatPanel({ isOpen, onClose, initialMessage = null, ev
                           : 'mr-8'
                     }`}
                   >
-                  <div
-                    className={`rounded-lg p-3 ${
-                      msg.role === 'user'
-                        ? 'bg-ai-accent text-white'
-                        : msg.role === 'error'
-                          ? 'bg-red-100 text-red-700 border border-red-200'
-                          : 'bg-white text-betfair-black border border-gray-200 shadow-sm'
-                    }`}
-                  >
-                    {msg.role === 'assistant' ? (
-                      <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:mt-2 prose-headings:mb-1 prose-code:bg-gray-100 prose-code:px-1 prose-code:rounded prose-pre:bg-gray-100 prose-pre:p-2">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      </div>
-                    ) : (
-                      <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
-                    )}
-                    {msg.model && (
-                      <p className="text-xs text-betfair-gray mt-2 pt-2 border-t border-gray-100">
-                        via {msg.model}
-                      </p>
-                    )}
-                  </div>
+                  {/* Deep Research Message with Progress */}
+                  {msg.isDeepResearch ? (
+                    <div className="rounded-lg p-4 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 shadow-sm">
+                      {/* Progress Steps */}
+                      {msg.progress && msg.progress.length > 0 && !msg.research && !msg.error && (
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center gap-2 text-amber-700 font-medium">
+                            <svg className="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                            Gemini Deep Research
+                          </div>
+                          {msg.progress.map((p, idx) => (
+                            <div key={idx} className="flex items-center gap-2 text-sm text-amber-800 ml-2">
+                              {/* Icon based on type */}
+                              {p.icon === 'search' && <span>🔍</span>}
+                              {p.icon === 'target' && <span>🎯</span>}
+                              {p.icon === 'brain' && <span>🧠</span>}
+                              {p.icon === 'chart' && <span>📊</span>}
+                              {p.icon === 'trending' && <span>📈</span>}
+                              {p.icon === 'alert' && <span>🚨</span>}
+                              {p.icon === 'users' && <span>👥</span>}
+                              {p.icon === 'trophy' && <span>🏆</span>}
+                              {p.icon === 'dollar' && <span>💰</span>}
+                              {p.icon === 'file' && <span>📄</span>}
+                              {p.icon === 'check' && <span>✅</span>}
+                              {p.icon === 'clock' && <span>⏱️</span>}
+                              <span className={idx === msg.progress.length - 1 ? 'font-medium' : 'text-amber-600'}>
+                                {p.message}
+                              </span>
+                              {idx === msg.progress.length - 1 && (
+                                <svg className="w-4 h-4 animate-spin text-amber-600" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Research Result */}
+                      {msg.research && (
+                        <div>
+                          <div className="flex items-center gap-2 text-green-700 font-medium mb-3">
+                            <span>✅</span> Research Complete
+                          </div>
+                          <div className="prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-headings:mt-3 prose-headings:mb-2 bg-white rounded-lg p-4 border border-amber-100">
+                            <ReactMarkdown>{msg.research}</ReactMarkdown>
+                          </div>
+                          {msg.model && (
+                            <p className="text-xs text-amber-600 mt-3 pt-2 border-t border-amber-200">
+                              Powered by {msg.model}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Error */}
+                      {msg.error && (
+                        <div className="flex items-center gap-2 text-red-600">
+                          <span>❌</span>
+                          <span>{msg.error}</span>
+                        </div>
+                      )}
+
+                      {/* Initial loading state */}
+                      {!msg.progress?.length && !msg.research && !msg.error && (
+                        <div className="flex items-center gap-2 text-amber-700">
+                          <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          <span>Initializing Gemini Deep Research...</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Regular Message */
+                    <div
+                      className={`rounded-lg p-3 ${
+                        msg.role === 'user'
+                          ? 'bg-ai-accent text-white'
+                          : msg.role === 'error'
+                            ? 'bg-red-100 text-red-700 border border-red-200'
+                            : 'bg-white text-betfair-black border border-gray-200 shadow-sm'
+                      }`}
+                    >
+                      {msg.role === 'assistant' ? (
+                        <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:mt-2 prose-headings:mb-1 prose-code:bg-gray-100 prose-code:px-1 prose-code:rounded prose-pre:bg-gray-100 prose-pre:p-2">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                      )}
+                      {msg.model && (
+                        <p className="text-xs text-betfair-gray mt-2 pt-2 border-t border-gray-100">
+                          via {msg.model}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
               {/* Searching indicator while AI is working */}

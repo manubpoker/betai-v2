@@ -32,11 +32,8 @@ export default function Exchange({ balance, onBalanceChange }) {
   // Bet History modal state
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
 
-  // Deep Research state
-  const [deepResearchEvent, setDeepResearchEvent] = useState(null)
-  const [deepResearchLoading, setDeepResearchLoading] = useState(false)
-  const [deepResearchResult, setDeepResearchResult] = useState(null)
-  const [deepResearchError, setDeepResearchError] = useState(null)
+  // Deep Research state (now integrated into chat)
+  const [deepResearchInProgress, setDeepResearchInProgress] = useState(false)
 
   // Fetch sports list
   useEffect(() => {
@@ -202,47 +199,43 @@ Analyze recent form, head-to-head, team news, and identify any value betting opp
     setIsChatOpen(true)
   }
 
-  // Handle Deep Research with Gemini
-  const handleDeepResearch = async (event) => {
-    // Confirm with user due to cost
-    const confirmed = window.confirm(
-      `Run Gemini Deep Research on "${event.event_name}"?\n\nThis will cost approximately £2 and may take up to 5 minutes.\n\nProceed?`
-    )
-
-    if (!confirmed) return
-
-    setDeepResearchEvent(event)
-    setDeepResearchLoading(true)
-    setDeepResearchResult(null)
-    setDeepResearchError(null)
-
-    try {
-      const res = await fetch(`${API_BASE}/api/ai/deep-research/${event.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        setDeepResearchResult(data)
-      } else {
-        setDeepResearchError(data.error || 'Research failed')
-      }
-    } catch (err) {
-      console.error('Deep research error:', err)
-      setDeepResearchError('Failed to connect to server')
-    } finally {
-      setDeepResearchLoading(false)
+  // Handle Deep Research with Gemini (opens in chat panel with streaming)
+  const handleDeepResearch = async (event, odds = []) => {
+    // Deduct £2 from balance immediately (no confirmation popup)
+    const DEEP_RESEARCH_COST = 2
+    if (balance < DEEP_RESEARCH_COST) {
+      alert('Insufficient balance for deep research (£2 required)')
+      return
     }
-  }
 
-  // Close deep research modal
-  const closeDeepResearch = () => {
-    setDeepResearchEvent(null)
-    setDeepResearchLoading(false)
-    setDeepResearchResult(null)
-    setDeepResearchError(null)
+    // Deduct cost
+    onBalanceChange(balance - DEEP_RESEARCH_COST)
+
+    // Build context for the chat panel
+    const currentOdds = odds.map(o => ({
+      selection: o.selection_name,
+      back_odds: o.back_odds,
+      lay_odds: o.lay_odds
+    }))
+
+    const today = new Date().toISOString().split('T')[0]
+
+    // Open chat panel with deep research mode
+    const context = {
+      event_id: event.id,
+      event_name: event.event_name,
+      sport: event.sport,
+      competition: event.competition,
+      is_live: event.is_live,
+      start_time: event.start_time,
+      odds: currentOdds,
+      deep_research: true, // Flag for deep research mode
+      research_date: today
+    }
+
+    setChatInitialMessage(`🔬 **Deep Research:** ${event.event_name}`)
+    setChatEventContext(context)
+    setIsChatOpen(true)
   }
 
   // Format last updated time
@@ -498,109 +491,6 @@ Analyze recent form, head-to-head, team news, and identify any value betting opp
         onClose={() => setIsHistoryOpen(false)}
       />
 
-      {/* Deep Research Modal */}
-      {deepResearchEvent && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Modal Header */}
-            <div className="bg-betfair-dark px-6 py-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-white">Deep Research</h2>
-                <p className="text-sm text-white/70">{deepResearchEvent.event_name}</p>
-              </div>
-              <button
-                onClick={closeDeepResearch}
-                className="text-white/70 hover:text-white"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {deepResearchLoading && (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <svg className="animate-spin h-12 w-12 text-amber-600 mb-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  <p className="text-lg font-medium text-betfair-black">Gemini Deep Research in progress...</p>
-                  <p className="text-sm text-betfair-gray mt-2">This may take up to 5 minutes. Please wait.</p>
-                  <p className="text-xs text-amber-600 mt-4">Analyzing team form, injuries, head-to-head, weather, and more...</p>
-                </div>
-              )}
-
-              {deepResearchError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-                  <svg className="w-12 h-12 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <h3 className="text-lg font-medium text-red-800">Research Failed</h3>
-                  <p className="text-sm text-red-600 mt-2">{deepResearchError}</p>
-                  <button
-                    onClick={closeDeepResearch}
-                    className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                  >
-                    Close
-                  </button>
-                </div>
-              )}
-
-              {deepResearchResult && (
-                <div className="space-y-6">
-                  {/* Success indicator */}
-                  <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
-                    <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div>
-                      <p className="font-medium text-betfair-black">Research Complete</p>
-                      <p className="text-xs text-betfair-gray">Powered by Gemini Deep Research</p>
-                    </div>
-                  </div>
-
-                  {/* Research content */}
-                  <div className="prose prose-sm max-w-none">
-                    <div className="whitespace-pre-wrap text-betfair-black leading-relaxed">
-                      {deepResearchResult.research}
-                    </div>
-                  </div>
-
-                  {/* Sources if available */}
-                  {deepResearchResult.sources && deepResearchResult.sources.length > 0 && (
-                    <div className="mt-6 pt-4 border-t border-gray-200">
-                      <h4 className="text-sm font-semibold text-betfair-gray mb-2">Sources</h4>
-                      <ul className="text-xs text-betfair-gray space-y-1">
-                        {deepResearchResult.sources.map((source, i) => (
-                          <li key={i}>
-                            <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-ai-accent hover:underline">
-                              {source.title || source.url}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            {!deepResearchLoading && (
-              <div className="border-t border-gray-200 px-6 py-4 flex justify-end">
-                <button
-                  onClick={closeDeepResearch}
-                  className="px-4 py-2 bg-betfair-yellow text-betfair-black font-medium rounded hover:brightness-95"
-                >
-                  Close
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

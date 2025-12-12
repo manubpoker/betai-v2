@@ -145,14 +145,14 @@ export default function OddsGrid({ events, onSelectOdds, betSlip, onMatchIntelli
                                     AI Analysis
                                   </button>
                                   <button
-                                    onClick={() => onDeepResearch && onDeepResearch(event)}
+                                    onClick={() => onDeepResearch && onDeepResearch(event, odds)}
                                     className="text-xs text-amber-600 hover:underline flex items-center gap-1"
-                                    title="Gemini Deep Research (~£2 cost)"
+                                    title="Gemini Deep Research - £2 deducted from balance"
                                   >
                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                     </svg>
-                                    Deep Analysis (£2)
+                                    Deep Research (£2)
                                   </button>
                                 </div>
                               </div>
