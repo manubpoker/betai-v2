@@ -21,11 +21,11 @@ primary_region = 'lhr'
 
   [[http_service.checks]]
     interval = '30s'
-    timeout = '10s'
-    grace_period = '2m0s'
+    timeout = '20s'
+    grace_period = '3m0s'
     method = 'GET'
     path = '/health'
 
 [[vm]]
-  size = 'shared-cpu-1x'
-  memory = '1024mb'
+  size = 'shared-cpu-2x'
+  memory = '2048mb'

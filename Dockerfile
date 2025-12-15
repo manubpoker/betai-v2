@@ -28,5 +28,5 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Run with gunicorn - use shell form to expand $PORT
-CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:${PORT} --workers 1 --timeout 300"]
+CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:${PORT} --workers 4 --threads 2 --timeout 300"]
 # Trigger rebuild
