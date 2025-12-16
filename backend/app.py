@@ -1080,7 +1080,7 @@ RESPOND IN THIS EXACT JSON FORMAT:
 }}
 
 IMPORTANT: reason must be 12 words or less. Be specific about why it's value.
-You MAY use web_search to research team form, injuries, or news to inform your analysis."""
+You MUST use web_search to research team form, injuries, and news to inform your analysis. Always search before making recommendations."""
 
     # Web search tool for researching team form, injuries, news
     web_search_tool = {
@@ -1809,7 +1809,7 @@ RESPOND IN THIS EXACT JSON FORMAT:
 }}
 
 IMPORTANT: reason must be 12 words or less. Be specific about why it's value.
-You MAY use web_search to research team form, injuries, or news to inform your analysis."""
+You MUST use web_search to research team form, injuries, and news to inform your analysis. Always search before making recommendations."""
 
     # Web search tool for researching team form, injuries, news
     web_search_tool = {
