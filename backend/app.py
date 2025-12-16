@@ -1350,7 +1350,7 @@ Please provide specific statistics, dates, and cite your sources. Focus on infor
                 ('Compiling research findings...', 'file', 10),
             ]
 
-            max_wait = 300  # 5 minutes
+            max_wait = 900  # 15 minutes
             poll_interval = 8  # 8 seconds
             elapsed = 0
             msg_index = 0
