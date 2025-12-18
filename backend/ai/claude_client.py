@@ -41,21 +41,14 @@ class ClaudeClient:
         self.last_successful_call = None
 
         # Extended tools including web search and code interpreter
+        # Use Claude's native web search (server-side, more reliable than DuckDuckGo)
+        self.web_search_tool = {
+            "type": "web_search_20250305",
+            "name": "web_search",
+            "max_uses": 5
+        }
+
         self.tools = TOOLS + [
-            {
-                "name": "web_search",
-                "description": "Search the web for current information about teams, players, recent form, injuries, and other betting-relevant data. Use this to research match intelligence.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "The search query"
-                        }
-                    },
-                    "required": ["query"]
-                }
-            },
             {
                 "name": "analyze_odds",
                 "description": "Execute Python code to analyze odds, calculate expected value, compare bookmaker margins, or perform statistical analysis. Returns the code output.",
@@ -146,13 +139,13 @@ Promote responsible gambling. Never guarantee outcomes."""
         max_iterations = 8  # Allow more iterations for comprehensive research
 
         for iteration in range(max_iterations):
-            # Call Claude API with tools
+            # Call Claude API with tools (including native web search)
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=4096,
                 system=system_prompt,
                 messages=messages,
-                tools=self.tools
+                tools=self.tools + [self.web_search_tool]
             )
 
             self.last_successful_call = datetime.utcnow().isoformat() + 'Z'
@@ -171,9 +164,17 @@ Promote responsible gambling. Never guarantee outcomes."""
                         tool_input = block.input
                         tool_id = block.id
 
-                        # Execute the tool
+                        # Native web_search is handled automatically by Claude API
+                        # We only need to execute our custom tools
                         if tool_name == "web_search":
-                            result = self._web_search(tool_input.get("query", ""))
+                            # Native web search - results come in response content
+                            # Just log it for tracking
+                            tool_calls.append({
+                                "name": tool_name,
+                                "input": tool_input,
+                                "result": "(native web search - handled by Claude)"
+                            })
+                            continue  # Skip manual execution
                         elif tool_name == "analyze_odds":
                             result = self._execute_code(
                                 tool_input.get("code", ""),
@@ -194,8 +195,9 @@ Promote responsible gambling. Never guarantee outcomes."""
                             "content": result
                         })
 
-                # Add tool results to messages
-                messages.append({"role": "user", "content": tool_results})
+                # Add tool results to messages (if any custom tools were executed)
+                if tool_results:
+                    messages.append({"role": "user", "content": tool_results})
 
             else:
                 # No more tool calls, extract final response
@@ -237,125 +239,6 @@ Promote responsible gambling. Never guarantee outcomes."""
             "response_source": "claude_api",
             "tool_calls": tool_calls
         }
-
-    def _web_search(self, query: str) -> str:
-        """
-        Perform a web search using DuckDuckGo.
-        Uses the duckduckgo_search library for real search results.
-        """
-        import time
-
-        try:
-            # Try using duckduckgo_search library first (best results)
-            try:
-                from duckduckgo_search import DDGS
-                from duckduckgo_search.exceptions import DuckDuckGoSearchException
-
-                # Add small delay to avoid rate limits
-                time.sleep(0.5)
-
-                with DDGS() as ddgs:
-                    results = list(ddgs.text(query, max_results=5))
-
-                if results:
-                    result = f"**Web Search Results for: {query}**\n\n"
-                    for i, r in enumerate(results, 1):
-                        title = r.get('title', 'No title')
-                        body = r.get('body', 'No description')
-                        href = r.get('href', '')
-                        result += f"{i}. **{title}**\n"
-                        result += f"   {body[:300]}{'...' if len(body) > 300 else ''}\n"
-                        if href:
-                            result += f"   Source: {href}\n"
-                        result += "\n"
-                    return result
-
-            except ImportError:
-                pass  # Fall through to backup method
-            except Exception as ddg_error:
-                # Handle rate limiting or other DDG errors
-                if "Ratelimit" in str(ddg_error):
-                    # Wait and retry once
-                    time.sleep(2)
-                    try:
-                        with DDGS() as ddgs:
-                            results = list(ddgs.text(query, max_results=3))
-                        if results:
-                            result = f"**Web Search Results for: {query}**\n\n"
-                            for i, r in enumerate(results, 1):
-                                title = r.get('title', 'No title')
-                                body = r.get('body', 'No description')
-                                href = r.get('href', '')
-                                result += f"{i}. **{title}**\n"
-                                result += f"   {body[:300]}{'...' if len(body) > 300 else ''}\n"
-                                if href:
-                                    result += f"   Source: {href}\n"
-                                result += "\n"
-                            return result
-                    except:
-                        pass  # Fall through to backup method
-                # For other errors, fall through to backup
-
-            # Fallback: Try DuckDuckGo HTML search with scraping
-            import requests
-            from urllib.parse import quote_plus
-
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
-
-            # Use DuckDuckGo lite (simpler to parse)
-            response = requests.get(
-                f"https://lite.duckduckgo.com/lite/?q={quote_plus(query)}",
-                headers=headers,
-                timeout=15
-            )
-
-            if response.status_code == 200:
-                # Basic HTML parsing for results
-                import re
-                text = response.text
-
-                # Extract result snippets (simplified parsing)
-                result_pattern = r'class="result-snippet"[^>]*>([^<]+)<'
-                snippets = re.findall(result_pattern, text)
-
-                # Extract result links and titles
-                link_pattern = r'class="result-link"[^>]*href="([^"]+)"[^>]*>([^<]+)<'
-                links = re.findall(link_pattern, text)
-
-                if links or snippets:
-                    result = f"**Web Search Results for: {query}**\n\n"
-                    for i, (href, title) in enumerate(links[:5], 1):
-                        snippet = snippets[i-1] if i <= len(snippets) else ""
-                        result += f"{i}. **{title.strip()}**\n"
-                        if snippet:
-                            result += f"   {snippet.strip()[:200]}...\n"
-                        result += f"   Source: {href}\n\n"
-                    return result
-
-            # Final fallback - provide useful guidance
-            return f"""**Web Search Results for: {query}**
-
-Unable to fetch live search results. Here's how to research this:
-
-1. **Recent Form**: Check ESPN, BBC Sport, or FlashScore for recent match results
-2. **Team News**: Look for injury reports on the team's official website or Twitter
-3. **Head-to-Head**: Sites like SofaScore or FootyStats have historical matchup data
-4. **Expert Analysis**: Check betting-focused sites like Oddschecker or Betfair's insights
-
-For accurate value bet analysis, combine the odds data from this platform with your own research on team form and conditions."""
-
-        except Exception as e:
-            return f"""**Web Search Error**
-
-Search failed: {str(e)}
-
-For match research, manually check:
-- ESPN.com for team form and news
-- BBC Sport for injury updates
-- FlashScore for head-to-head stats
-- Twitter for real-time team news"""
 
     def _execute_code(self, code: str, description: str = "") -> str:
         """
