@@ -628,6 +628,48 @@ def get_sports():
 
 
 # ============================================================
+# CONTENT FEED ENDPOINTS
+# ============================================================
+
+@app.route('/api/content', methods=['GET'])
+def get_content():
+    """Get content feed."""
+    from content_scraper import get_content_feed, init_content_db
+
+    # Ensure table exists
+    init_content_db()
+
+    content_type = request.args.get('type', 'all')
+    limit = min(int(request.args.get('limit', 50)), 100)
+
+    content = get_content_feed(limit=limit, content_type=content_type)
+
+    return jsonify({
+        "content": content,
+        "count": len(content)
+    })
+
+
+@app.route('/api/content/scrape', methods=['POST'])
+def trigger_content_scrape():
+    """Manually trigger a content scrape."""
+    from content_scraper import run_content_scrape
+
+    try:
+        max_workers = int(request.json.get('workers', 3)) if request.json else 3
+        result = run_content_scrape(max_workers=max_workers)
+        return jsonify({
+            "success": True,
+            "result": result
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+# ============================================================
 # BETTING ENDPOINTS
 # ============================================================
 
