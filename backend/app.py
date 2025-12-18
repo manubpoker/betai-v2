@@ -1835,10 +1835,8 @@ def get_timeout_status():
     return jsonify({"in_timeout": False})
 
 
-@app.route('/api/safer-gaming/activity', methods=['GET'])
-def get_player_activity():
-    """Get comprehensive player activity data for the safer gaming agent."""
-    db = get_db()
+def _get_player_activity_data(db):
+    """Helper function to get player activity data as a dict."""
     now = datetime.utcnow()
 
     # Get balance
@@ -1893,7 +1891,7 @@ def get_player_activity():
     deposits_this_week = sum(t['amount'] for t in recent_transactions
                             if t['transaction_type'] == 'deposit' and t['created_at'] >= week_ago)
 
-    return jsonify({
+    return {
         "current_balance": current_balance,
         "starting_balance": 1000.00,
         "total_bets": total_bets,
@@ -1927,7 +1925,14 @@ def get_player_activity():
         },
         "recent_bets": [dict(b) for b in all_bets[:10]],
         "recent_transactions": [dict(t) for t in recent_transactions[:10]]
-    })
+    }
+
+
+@app.route('/api/safer-gaming/activity', methods=['GET'])
+def get_player_activity():
+    """Get comprehensive player activity data for the safer gaming agent."""
+    db = get_db()
+    return jsonify(_get_player_activity_data(db))
 
 
 @app.route('/api/safer-gaming/chat', methods=['POST'])
@@ -1962,8 +1967,7 @@ def safer_gaming_chat():
     ''', (conversation_id,)).fetchall()
 
     # Get player activity for context
-    activity_response = get_player_activity()
-    activity_data = activity_response.get_json()
+    activity_data = _get_player_activity_data(db)
 
     # Build messages for Claude
     messages = [{"role": h['role'], "content": h['content']} for h in history]
