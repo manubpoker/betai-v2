@@ -2,35 +2,83 @@ import { useState, useEffect } from 'react'
 import { API_BASE } from '../config'
 
 export default function PredictionMarket({ isOpen, onClose, balance, onBalanceChange }) {
-  const [matches, setMatches] = useState([])
+  const [markets, setMarkets] = useState([])
   const [loading, setLoading] = useState(true)
-  const [selectedPrediction, setSelectedPrediction] = useState(null)
-  const [stake, setStake] = useState('')
-  const [placingBet, setPlacingBet] = useState(false)
-  const [betResult, setBetResult] = useState(null)
+  const [selectedMarket, setSelectedMarket] = useState(null)
+  const [selectedOutcome, setSelectedOutcome] = useState(null) // 'yes' or 'no'
+  const [shares, setShares] = useState('')
+  const [placingTrade, setPlacingTrade] = useState(false)
+  const [tradeResult, setTradeResult] = useState(null)
+  const [filter, setFilter] = useState('all') // 'all', 'football', 'trending'
 
-  // Fetch football matches
-  const fetchMatches = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch(`${API_BASE}/api/events?sport=football&data_type=exchange`)
-      const data = await res.json()
-      setMatches(data)
-    } catch (err) {
-      console.error('Error fetching matches:', err)
-    } finally {
-      setLoading(false)
-    }
+  // Generate prediction markets from football events
+  const generateMarketsFromEvents = (events) => {
+    const markets = []
+
+    events.forEach((event, index) => {
+      const odds = event.odds || []
+      if (odds.length < 2) return
+
+      const matchName = parseEventName(event.event_name)
+      const teams = matchName.split(' v ') || matchName.split(' vs ')
+
+      // Market 1: Match Winner
+      if (odds[0] && odds[0].back_odds) {
+        const homeProb = Math.min(0.95, Math.max(0.05, 1 / odds[0].back_odds))
+        markets.push({
+          id: `${event.id}-winner`,
+          eventId: event.id,
+          question: `Will ${odds[0].selection_name} win?`,
+          category: 'Football',
+          competition: event.competition,
+          matchName: matchName,
+          endTime: event.start_time,
+          isLive: event.is_live === 1,
+          yesPrice: homeProb,
+          noPrice: 1 - homeProb,
+          volume: Math.floor(Math.random() * 50000) + 10000,
+          liquidity: Math.floor(Math.random() * 100000) + 50000,
+          iconType: 'football'
+        })
+      }
+
+      // Market 2: Over 2.5 Goals (simulated)
+      markets.push({
+        id: `${event.id}-goals`,
+        eventId: event.id,
+        question: `Over 2.5 goals in ${matchName}?`,
+        category: 'Football',
+        competition: event.competition,
+        matchName: matchName,
+        endTime: event.start_time,
+        isLive: event.is_live === 1,
+        yesPrice: 0.45 + Math.random() * 0.2,
+        noPrice: 0.35 + Math.random() * 0.2,
+        volume: Math.floor(Math.random() * 30000) + 5000,
+        liquidity: Math.floor(Math.random() * 80000) + 30000,
+        iconType: 'goals'
+      })
+
+      // Market 3: Both Teams to Score
+      markets.push({
+        id: `${event.id}-btts`,
+        eventId: event.id,
+        question: `Both teams to score in ${matchName}?`,
+        category: 'Football',
+        competition: event.competition,
+        matchName: matchName,
+        endTime: event.start_time,
+        isLive: event.is_live === 1,
+        yesPrice: 0.50 + Math.random() * 0.15,
+        noPrice: 0.35 + Math.random() * 0.15,
+        volume: Math.floor(Math.random() * 25000) + 3000,
+        liquidity: Math.floor(Math.random() * 60000) + 20000,
+        iconType: 'btts'
+      })
+    })
+
+    return markets
   }
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchMatches()
-      setSelectedPrediction(null)
-      setStake('')
-      setBetResult(null)
-    }
-  }, [isOpen])
 
   // Parse event name to extract clean match name
   const parseEventName = (rawName) => {
@@ -52,108 +100,141 @@ export default function PredictionMarket({ isOpen, onClose, balance, onBalanceCh
     return rawName
   }
 
-  // Select a prediction (team to win or draw)
-  const selectPrediction = (match, selection, odds) => {
-    setSelectedPrediction({
-      matchId: match.id,
-      matchName: parseEventName(match.event_name),
-      selection,
-      odds,
-      competition: match.competition
-    })
-    setStake('')
-    setBetResult(null)
+  // Fetch markets
+  const fetchMarkets = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/events?sport=football&data_type=exchange`)
+      const events = await res.json()
+      const generatedMarkets = generateMarketsFromEvents(events)
+      setMarkets(generatedMarkets)
+    } catch (err) {
+      console.error('Error fetching markets:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  // Place the prediction bet
-  const placePrediction = async () => {
-    if (!selectedPrediction || !stake || parseFloat(stake) <= 0) return
+  useEffect(() => {
+    if (isOpen) {
+      fetchMarkets()
+      setSelectedMarket(null)
+      setSelectedOutcome(null)
+      setShares('')
+      setTradeResult(null)
+    }
+  }, [isOpen])
 
-    setPlacingBet(true)
+  // Select a market and outcome
+  const selectMarket = (market, outcome) => {
+    setSelectedMarket(market)
+    setSelectedOutcome(outcome)
+    setShares('')
+    setTradeResult(null)
+  }
+
+  // Calculate cost and potential payout
+  const sharePrice = selectedMarket && selectedOutcome
+    ? (selectedOutcome === 'yes' ? selectedMarket.yesPrice : selectedMarket.noPrice)
+    : 0
+  const cost = shares ? (parseFloat(shares) * sharePrice).toFixed(2) : '0.00'
+  const potentialPayout = shares ? parseFloat(shares).toFixed(2) : '0.00'
+  const potentialProfit = shares ? (parseFloat(shares) - parseFloat(cost)).toFixed(2) : '0.00'
+
+  // Place trade
+  const placeTrade = async () => {
+    if (!selectedMarket || !selectedOutcome || !shares || parseFloat(shares) <= 0) return
+
+    setPlacingTrade(true)
     try {
       const res = await fetch(`${API_BASE}/api/bets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          event_id: selectedPrediction.matchId,
-          selection_name: selectedPrediction.selection,
-          odds: selectedPrediction.odds,
-          stake: parseFloat(stake),
+          event_id: selectedMarket.eventId,
+          selection_name: `${selectedMarket.question} - ${selectedOutcome.toUpperCase()}`,
+          odds: 1 / sharePrice,
+          stake: parseFloat(cost),
           bet_type: 'back'
         })
       })
       const data = await res.json()
       if (data.success) {
-        setBetResult({ success: true, message: 'Prediction placed!' })
+        setTradeResult({ success: true, message: `Bought ${shares} shares at $${sharePrice.toFixed(2)}` })
         if (onBalanceChange) {
           onBalanceChange(data.new_balance)
         }
-        setSelectedPrediction(null)
-        setStake('')
+        setSelectedMarket(null)
+        setSelectedOutcome(null)
+        setShares('')
       } else {
-        setBetResult({ success: false, message: data.error || 'Failed to place prediction' })
+        setTradeResult({ success: false, message: data.error || 'Trade failed' })
       }
     } catch (err) {
-      console.error('Error placing prediction:', err)
-      setBetResult({ success: false, message: 'Network error' })
+      console.error('Error placing trade:', err)
+      setTradeResult({ success: false, message: 'Network error' })
     } finally {
-      setPlacingBet(false)
+      setPlacingTrade(false)
     }
   }
 
-  // Calculate potential return
-  const potentialReturn = selectedPrediction && stake
-    ? (parseFloat(stake) * selectedPrediction.odds).toFixed(2)
-    : '0.00'
+  // Filter markets
+  const filteredMarkets = markets.filter(m => {
+    if (filter === 'all') return true
+    if (filter === 'trending') return m.volume > 20000
+    return true
+  })
 
-  if (!isOpen) return null
-
-  // Group matches by competition
-  const groupedMatches = matches.reduce((acc, match) => {
-    const comp = match.competition || 'Other Matches'
+  // Group by competition
+  const groupedMarkets = filteredMarkets.reduce((acc, market) => {
+    const comp = market.competition || 'Other'
     if (!acc[comp]) acc[comp] = []
-    acc[comp].push(match)
+    acc[comp].push(market)
     return acc
   }, {})
+
+  if (!isOpen) return null
 
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 z-40"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
 
-      {/* Panel - full width modal */}
-      <div className="fixed inset-x-4 inset-y-4 md:inset-x-20 md:inset-y-10 bg-white rounded-lg shadow-2xl z-50 flex flex-col overflow-hidden">
+      {/* Modal */}
+      <div className="fixed inset-4 md:inset-8 bg-[#0d0d0d] rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-green-600 to-green-700 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <div>
-              <h2 className="font-bold text-white text-lg">Prediction Markets</h2>
-              <p className="text-green-100 text-sm">Football Matches</p>
+        <div className="bg-[#1a1a1a] px-6 py-4 flex items-center justify-between border-b border-white/10">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </div>
+              <span className="text-white font-bold text-xl">Prediction Markets</span>
+            </div>
+            <div className="hidden md:flex items-center gap-2 ml-4">
+              {['all', 'trending'].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    filter === f
+                      ? 'bg-white text-black'
+                      : 'bg-white/10 text-white/70 hover:bg-white/20'
+                  }`}
+                >
+                  {f === 'all' ? '⚽ All Football' : '🔥 Trending'}
+                </button>
+              ))}
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="bg-white/20 px-3 py-1.5 rounded text-white text-sm">
-              Balance: <span className="font-bold">£{balance?.toFixed(2) || '0.00'}</span>
+            <div className="bg-white/10 px-4 py-2 rounded-lg">
+              <span className="text-white/60 text-sm">Balance</span>
+              <span className="text-white font-bold ml-2">${balance?.toFixed(2) || '0.00'}</span>
             </div>
-            <button
-              onClick={fetchMatches}
-              className="text-white/70 hover:text-white p-2 transition-colors"
-              title="Refresh matches"
-            >
-              <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
-            <button
-              onClick={onClose}
-              className="text-white/70 hover:text-white transition-colors"
-            >
+            <button onClick={onClose} className="text-white/60 hover:text-white p-2 transition-colors">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -161,100 +242,90 @@ export default function PredictionMarket({ isOpen, onClose, balance, onBalanceCh
           </div>
         </div>
 
-        {/* Main Content Area */}
+        {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Matches List */}
-          <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+          {/* Markets Grid */}
+          <div className="flex-1 overflow-y-auto p-6">
             {loading ? (
               <div className="flex items-center justify-center h-64">
-                <div className="flex items-center gap-3 text-betfair-gray">
+                <div className="flex items-center gap-3 text-white/60">
                   <svg className="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  <span className="text-lg">Loading football matches...</span>
+                  <span>Loading markets...</span>
                 </div>
               </div>
-            ) : matches.length === 0 ? (
-              <div className="text-center text-betfair-gray py-16">
-                <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-lg font-medium">No football matches available</p>
-                <p className="text-sm mt-1">Check back later for upcoming matches</p>
+            ) : markets.length === 0 ? (
+              <div className="text-center text-white/60 py-16">
+                <p className="text-lg">No markets available</p>
+                <p className="text-sm mt-1">Check back later for new prediction markets</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {Object.entries(groupedMatches).map(([competition, compMatches]) => (
-                  <div key={competition} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    {/* Competition Header */}
-                    <div className="bg-betfair-dark px-4 py-2.5 flex items-center gap-2">
-                      <svg className="w-4 h-4 text-betfair-yellow" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 14a6 6 0 110-12 6 6 0 010 12z"/>
-                      </svg>
-                      <span className="text-white font-semibold text-sm">{competition}</span>
-                      <span className="text-white/50 text-xs ml-auto">{compMatches.length} matches</span>
-                    </div>
-
-                    {/* Matches */}
-                    <div className="divide-y divide-gray-100">
-                      {compMatches.map((match) => {
-                        const odds = match.odds || []
-                        const matchName = parseEventName(match.event_name)
-
-                        return (
-                          <div key={match.id} className="p-4 hover:bg-gray-50 transition-colors">
-                            {/* Match Info */}
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-betfair-black">{matchName}</span>
-                                {match.is_live === 1 && (
-                                  <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded font-medium animate-pulse">
-                                    LIVE
-                                  </span>
-                                )}
-                              </div>
-                              {match.start_time && (
-                                <span className="text-xs text-betfair-gray">{match.start_time}</span>
+              <div className="space-y-8">
+                {Object.entries(groupedMarkets).map(([competition, compMarkets]) => (
+                  <div key={competition}>
+                    <h3 className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <span>⚽</span> {competition}
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {compMarkets.map((market) => (
+                        <div
+                          key={market.id}
+                          className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5 hover:border-white/20 transition-all"
+                        >
+                          {/* Market Header */}
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              {market.isLive && (
+                                <span className="inline-block px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full mb-2">
+                                  🔴 LIVE
+                                </span>
                               )}
+                              <h4 className="text-white font-medium text-sm leading-tight">
+                                {market.question}
+                              </h4>
+                              <p className="text-white/40 text-xs mt-1">{market.matchName}</p>
                             </div>
-
-                            {/* Prediction Buttons */}
-                            {odds.length > 0 ? (
-                              <div className="grid grid-cols-3 gap-2">
-                                {odds.slice(0, 3).map((odd) => {
-                                  const isSelected = selectedPrediction?.matchId === match.id &&
-                                                    selectedPrediction?.selection === odd.selection_name
-                                  return (
-                                    <button
-                                      key={odd.selection_name}
-                                      onClick={() => selectPrediction(match, odd.selection_name, odd.back_odds)}
-                                      className={`p-3 rounded-lg border-2 transition-all ${
-                                        isSelected
-                                          ? 'border-green-500 bg-green-50 ring-2 ring-green-200'
-                                          : 'border-gray-200 hover:border-green-300 hover:bg-green-50/50'
-                                      }`}
-                                    >
-                                      <div className="text-xs text-betfair-gray mb-1 truncate">
-                                        {odd.selection_name}
-                                      </div>
-                                      <div className={`text-lg font-bold font-mono ${
-                                        isSelected ? 'text-green-600' : 'text-betfair-black'
-                                      }`}>
-                                        {odd.back_odds?.toFixed(2) || '-'}
-                                      </div>
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                            ) : (
-                              <div className="text-center text-betfair-gray text-sm py-2">
-                                No odds available
-                              </div>
-                            )}
                           </div>
-                        )
-                      })}
+
+                          {/* Yes/No Buttons */}
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            <button
+                              onClick={() => selectMarket(market, 'yes')}
+                              className={`p-3 rounded-lg transition-all ${
+                                selectedMarket?.id === market.id && selectedOutcome === 'yes'
+                                  ? 'bg-green-500/30 border-2 border-green-500'
+                                  : 'bg-green-500/10 border border-green-500/30 hover:bg-green-500/20'
+                              }`}
+                            >
+                              <div className="text-green-400 text-xs font-medium mb-1">Yes</div>
+                              <div className="text-white font-bold text-lg">
+                                {(market.yesPrice * 100).toFixed(0)}¢
+                              </div>
+                            </button>
+                            <button
+                              onClick={() => selectMarket(market, 'no')}
+                              className={`p-3 rounded-lg transition-all ${
+                                selectedMarket?.id === market.id && selectedOutcome === 'no'
+                                  ? 'bg-red-500/30 border-2 border-red-500'
+                                  : 'bg-red-500/10 border border-red-500/30 hover:bg-red-500/20'
+                              }`}
+                            >
+                              <div className="text-red-400 text-xs font-medium mb-1">No</div>
+                              <div className="text-white font-bold text-lg">
+                                {(market.noPrice * 100).toFixed(0)}¢
+                              </div>
+                            </button>
+                          </div>
+
+                          {/* Volume */}
+                          <div className="flex items-center justify-between text-xs text-white/40">
+                            <span>${(market.volume / 1000).toFixed(0)}k Vol</span>
+                            <span>{market.endTime || 'TBD'}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
@@ -262,119 +333,156 @@ export default function PredictionMarket({ isOpen, onClose, balance, onBalanceCh
             )}
           </div>
 
-          {/* Bet Slip Sidebar */}
-          <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
-            <div className="bg-betfair-yellow px-4 py-3">
-              <h3 className="font-bold text-betfair-black">Your Prediction</h3>
+          {/* Trade Panel */}
+          <div className="w-80 bg-[#1a1a1a] border-l border-white/10 flex flex-col">
+            <div className="p-4 border-b border-white/10">
+              <h3 className="text-white font-semibold">Trade</h3>
             </div>
 
-            <div className="flex-1 p-4">
-              {selectedPrediction ? (
+            <div className="flex-1 p-4 overflow-y-auto">
+              {selectedMarket ? (
                 <div className="space-y-4">
-                  {/* Selected Match */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-betfair-gray mb-1">{selectedPrediction.competition}</p>
-                    <p className="font-medium text-betfair-black text-sm">{selectedPrediction.matchName}</p>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-green-600 font-semibold">{selectedPrediction.selection}</span>
-                      <span className="bg-betfair-yellow px-2 py-0.5 rounded font-mono font-bold text-sm">
-                        @{selectedPrediction.odds.toFixed(2)}
-                      </span>
-                    </div>
+                  {/* Selected Market */}
+                  <div className="bg-white/5 rounded-lg p-3">
+                    <p className="text-white text-sm font-medium">{selectedMarket.question}</p>
+                    <p className="text-white/40 text-xs mt-1">{selectedMarket.competition}</p>
                   </div>
 
-                  {/* Stake Input */}
-                  <div>
-                    <label className="block text-sm font-medium text-betfair-gray mb-2">
-                      Stake Amount (£)
-                    </label>
-                    <input
-                      type="number"
-                      value={stake}
-                      onChange={(e) => setStake(e.target.value)}
-                      placeholder="Enter stake"
-                      min="0.01"
-                      step="0.01"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-lg font-mono"
-                    />
+                  {/* Outcome Selection */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setSelectedOutcome('yes')}
+                      className={`p-2 rounded-lg text-sm font-medium transition-all ${
+                        selectedOutcome === 'yes'
+                          ? 'bg-green-500 text-white'
+                          : 'bg-white/10 text-white/60 hover:bg-white/20'
+                      }`}
+                    >
+                      Buy Yes
+                    </button>
+                    <button
+                      onClick={() => setSelectedOutcome('no')}
+                      className={`p-2 rounded-lg text-sm font-medium transition-all ${
+                        selectedOutcome === 'no'
+                          ? 'bg-red-500 text-white'
+                          : 'bg-white/10 text-white/60 hover:bg-white/20'
+                      }`}
+                    >
+                      Buy No
+                    </button>
                   </div>
 
-                  {/* Quick Stakes */}
-                  <div className="grid grid-cols-4 gap-2">
-                    {[5, 10, 25, 50].map((amount) => (
-                      <button
-                        key={amount}
-                        onClick={() => setStake(amount.toString())}
-                        className="py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded transition-colors font-medium"
-                      >
-                        £{amount}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Potential Return */}
-                  <div className="bg-green-50 rounded-lg p-3 border border-green-200">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-green-700">Potential Return</span>
-                      <span className="text-xl font-bold text-green-600">£{potentialReturn}</span>
-                    </div>
-                    {stake && (
-                      <div className="text-xs text-green-600 mt-1">
-                        Profit: £{(parseFloat(potentialReturn) - parseFloat(stake)).toFixed(2)}
+                  {selectedOutcome && (
+                    <>
+                      {/* Price Display */}
+                      <div className="bg-white/5 rounded-lg p-3 text-center">
+                        <p className="text-white/40 text-xs">Price per share</p>
+                        <p className={`text-2xl font-bold ${
+                          selectedOutcome === 'yes' ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          ${sharePrice.toFixed(2)}
+                        </p>
+                        <p className="text-white/40 text-xs mt-1">
+                          {(sharePrice * 100).toFixed(0)}% implied probability
+                        </p>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Place Button */}
-                  <button
-                    onClick={placePrediction}
-                    disabled={!stake || parseFloat(stake) <= 0 || placingBet}
-                    className={`w-full py-3 rounded-lg font-bold text-white transition-colors ${
-                      !stake || parseFloat(stake) <= 0 || placingBet
-                        ? 'bg-gray-300 cursor-not-allowed'
-                        : 'bg-green-600 hover:bg-green-700'
-                    }`}
-                  >
-                    {placingBet ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                        Placing...
-                      </span>
-                    ) : (
-                      'Place Prediction'
-                    )}
-                  </button>
+                      {/* Shares Input */}
+                      <div>
+                        <label className="block text-white/60 text-sm mb-2">Shares</label>
+                        <input
+                          type="number"
+                          value={shares}
+                          onChange={(e) => setShares(e.target.value)}
+                          placeholder="0"
+                          min="1"
+                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-lg font-mono focus:outline-none focus:border-white/30"
+                        />
+                      </div>
 
-                  {/* Result Message */}
-                  {betResult && (
+                      {/* Quick Amounts */}
+                      <div className="grid grid-cols-4 gap-2">
+                        {[10, 25, 50, 100].map((amount) => (
+                          <button
+                            key={amount}
+                            onClick={() => setShares(amount.toString())}
+                            className="py-2 text-xs bg-white/10 hover:bg-white/20 rounded-lg text-white/70 transition-colors"
+                          >
+                            {amount}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Cost Summary */}
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between text-white/60">
+                          <span>Cost</span>
+                          <span className="text-white">${cost}</span>
+                        </div>
+                        <div className="flex justify-between text-white/60">
+                          <span>Potential Payout</span>
+                          <span className="text-white">${potentialPayout}</span>
+                        </div>
+                        <div className="flex justify-between font-medium">
+                          <span className="text-white/60">Potential Profit</span>
+                          <span className="text-green-400">+${potentialProfit}</span>
+                        </div>
+                      </div>
+
+                      {/* Trade Button */}
+                      <button
+                        onClick={placeTrade}
+                        disabled={!shares || parseFloat(shares) <= 0 || placingTrade}
+                        className={`w-full py-3 rounded-lg font-bold transition-colors ${
+                          !shares || parseFloat(shares) <= 0 || placingTrade
+                            ? 'bg-white/10 text-white/30 cursor-not-allowed'
+                            : selectedOutcome === 'yes'
+                              ? 'bg-green-500 hover:bg-green-600 text-white'
+                              : 'bg-red-500 hover:bg-red-600 text-white'
+                        }`}
+                      >
+                        {placingTrade ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Processing...
+                          </span>
+                        ) : (
+                          `Buy ${selectedOutcome === 'yes' ? 'Yes' : 'No'} Shares`
+                        )}
+                      </button>
+                    </>
+                  )}
+
+                  {/* Trade Result */}
+                  {tradeResult && (
                     <div className={`p-3 rounded-lg text-sm ${
-                      betResult.success
-                        ? 'bg-green-100 text-green-700 border border-green-200'
-                        : 'bg-red-100 text-red-700 border border-red-200'
+                      tradeResult.success
+                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                        : 'bg-red-500/20 text-red-400 border border-red-500/30'
                     }`}>
-                      {betResult.message}
+                      {tradeResult.message}
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="text-center text-betfair-gray py-8">
+                <div className="text-center text-white/40 py-12">
                   <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                   </svg>
-                  <p className="font-medium">Select a prediction</p>
-                  <p className="text-sm mt-1">Click on any outcome to make your prediction</p>
+                  <p className="font-medium">Select a market</p>
+                  <p className="text-sm mt-1">Click Yes or No on any market to trade</p>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
-              <p className="text-xs text-betfair-gray text-center">
-                Predictions are for entertainment purposes only.
-                <br />Please gamble responsibly.
+            <div className="p-4 border-t border-white/10">
+              <p className="text-xs text-white/30 text-center">
+                Shares pay $1 if correct, $0 if wrong.
+                <br />Trade responsibly.
               </p>
             </div>
           </div>
