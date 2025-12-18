@@ -4,12 +4,14 @@ import Exchange from './pages/Exchange'
 import AIChatPanel from './components/AIChatPanel'
 import AIBetFeed from './components/AIBetFeed'
 import SaferGamingAgent from './components/SaferGamingAgent'
+import PredictionMarket from './components/PredictionMarket'
 import { API_BASE } from './config'
 
 function App() {
   const [chatOpen, setChatOpen] = useState(false)
   const [betFeedOpen, setBetFeedOpen] = useState(false)
   const [saferGamingOpen, setSaferGamingOpen] = useState(false)
+  const [predictionMarketOpen, setPredictionMarketOpen] = useState(false)
   const [betFeedRefresh, setBetFeedRefresh] = useState(0)
   const [balance, setBalance] = useState(1000.00)
 
@@ -95,6 +97,15 @@ function App() {
                   </svg>
                   Safer Gaming
                 </button>
+                <button
+                  onClick={() => setPredictionMarketOpen(true)}
+                  className="px-4 py-2 text-white/80 hover:text-white font-medium flex items-center gap-2 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Predictions
+                </button>
               </div>
 
               {/* AI Status Indicator */}
@@ -136,6 +147,14 @@ function App() {
         <SaferGamingAgent
           isOpen={saferGamingOpen}
           onClose={() => setSaferGamingOpen(false)}
+        />
+
+        {/* Prediction Market */}
+        <PredictionMarket
+          isOpen={predictionMarketOpen}
+          onClose={() => setPredictionMarketOpen(false)}
+          balance={balance}
+          onBalanceChange={setBalance}
         />
       </div>
     </Router>
