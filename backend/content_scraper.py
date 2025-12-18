@@ -13,7 +13,7 @@ Sources:
 
 Features:
 - Multi-threaded scraping with worker pool
-- Content types: articles, tweets, videos, stats
+- Content types: articles, social posts
 - Match-aware content linking
 - Rate limiting and polite scraping
 """
@@ -35,68 +35,32 @@ CONTENT_SOURCES = {
     "bbc_sport": {
         "name": "BBC Sport",
         "url": "https://www.bbc.com/sport/football",
-        "type": "news",
-        "selectors": {
-            "articles": "a[data-testid='internal-link'], .ssrcss-1mrs5ns-PromoLink",
-            "title": "h3, .ssrcss-1b1mki6-PromoHeadline, p.ssrcss-1b1mki6-PromoHeadline",
-            "summary": ".ssrcss-1q0x1qg-Paragraph, p[class*='Paragraph']",
-            "time": "time, span[class*='MetadataText']"
-        }
+        "type": "news"
     },
     "sky_sports": {
         "name": "Sky Sports",
         "url": "https://www.skysports.com/football/news",
-        "type": "news",
-        "selectors": {
-            "articles": ".news-list__item a, article a",
-            "title": ".news-list__headline, h3, .sdc-article-header__title",
-            "summary": ".news-list__snippet, .sdc-article-body__content p",
-            "time": ".news-list__time, time"
-        }
+        "type": "news"
     },
     "espn_fc": {
         "name": "ESPN FC",
         "url": "https://www.espn.com/soccer/",
-        "type": "news",
-        "selectors": {
-            "articles": ".contentItem a, .headlineStack__list a",
-            "title": ".contentItem__title, h1, h2",
-            "summary": ".contentItem__subhead",
-            "time": ".contentMeta__timestamp"
-        }
+        "type": "news"
     },
     "guardian": {
         "name": "The Guardian",
         "url": "https://www.theguardian.com/football",
-        "type": "news",
-        "selectors": {
-            "articles": ".fc-item__link, a[data-link-name='article']",
-            "title": ".fc-item__title, .js-headline-text",
-            "summary": ".fc-item__standfirst",
-            "time": "time"
-        }
+        "type": "news"
     },
     "reddit_soccer": {
         "name": "Reddit r/soccer",
-        "url": "https://www.reddit.com/r/soccer/hot/",
-        "type": "social",
-        "selectors": {
-            "posts": "shreddit-post, article",
-            "title": "[slot='title'], h3",
-            "score": "shreddit-post[score], .score",
-            "comments": "[slot='commentCount'], .comments"
-        }
+        "url": "https://old.reddit.com/r/soccer/",
+        "type": "social"
     },
     "reddit_betting": {
         "name": "Reddit r/SoccerBetting",
-        "url": "https://www.reddit.com/r/SoccerBetting/hot/",
-        "type": "social",
-        "selectors": {
-            "posts": "shreddit-post, article",
-            "title": "[slot='title'], h3",
-            "score": "shreddit-post[score], .score",
-            "comments": "[slot='commentCount'], .comments"
-        }
+        "url": "https://old.reddit.com/r/SoccerBetting/",
+        "type": "social"
     }
 }
 
@@ -109,7 +73,8 @@ FOOTBALL_KEYWORDS = [
     'juventus', 'inter', 'milan', 'napoli', 'roma',
     'psg', 'marseille', 'lyon',
     'transfer', 'goal', 'score', 'match', 'lineup', 'injury',
-    'manager', 'coach', 'signing', 'contract', 'deal'
+    'manager', 'coach', 'signing', 'contract', 'deal',
+    'football', 'soccer', 'fc', 'united', 'league'
 ]
 
 
@@ -137,7 +102,6 @@ def init_content_db():
         )
     ''')
 
-    # Create index for faster queries
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_content_scraped_at ON scraped_content(scraped_at DESC)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_content_type ON scraped_content(content_type)')
 
@@ -180,7 +144,6 @@ def extract_teams_from_text(text: str) -> List[str]:
     text_lower = text.lower()
 
     team_patterns = [
-        # Premier League
         ('manchester united', 'Man United'), ('manchester city', 'Man City'),
         ('liverpool', 'Liverpool'), ('arsenal', 'Arsenal'), ('chelsea', 'Chelsea'),
         ('tottenham', 'Tottenham'), ('newcastle', 'Newcastle'), ('aston villa', 'Aston Villa'),
@@ -188,26 +151,19 @@ def extract_teams_from_text(text: str) -> List[str]:
         ('brentford', 'Brentford'), ('crystal palace', 'Crystal Palace'),
         ('wolves', 'Wolves'), ('everton', 'Everton'), ('nottingham forest', 'Nottingham Forest'),
         ('bournemouth', 'Bournemouth'), ('leicester', 'Leicester'),
-        # La Liga
         ('barcelona', 'Barcelona'), ('real madrid', 'Real Madrid'),
         ('atletico madrid', 'Atletico Madrid'), ('sevilla', 'Sevilla'),
-        ('villarreal', 'Villarreal'), ('real sociedad', 'Real Sociedad'),
-        # Bundesliga
         ('bayern munich', 'Bayern Munich'), ('borussia dortmund', 'Dortmund'),
-        ('rb leipzig', 'RB Leipzig'), ('leverkusen', 'Leverkusen'),
-        # Serie A
         ('juventus', 'Juventus'), ('inter milan', 'Inter'), ('ac milan', 'AC Milan'),
-        ('napoli', 'Napoli'), ('roma', 'Roma'), ('lazio', 'Lazio'),
-        # Ligue 1
-        ('paris saint-germain', 'PSG'), ('psg', 'PSG'), ('marseille', 'Marseille'),
-        ('lyon', 'Lyon'), ('monaco', 'Monaco'),
+        ('napoli', 'Napoli'), ('roma', 'Roma'),
+        ('paris saint-germain', 'PSG'), ('psg', 'PSG'),
     ]
 
     for pattern, name in team_patterns:
         if pattern in text_lower and name not in teams:
             teams.append(name)
 
-    return teams[:5]  # Max 5 teams
+    return teams[:5]
 
 
 def extract_competition_from_text(text: str) -> Optional[str]:
@@ -222,11 +178,8 @@ def extract_competition_from_text(text: str) -> Optional[str]:
         ('ligue 1', 'Ligue 1'),
         ('champions league', 'Champions League'),
         ('europa league', 'Europa League'),
-        ('conference league', 'Conference League'),
         ('fa cup', 'FA Cup'),
         ('carabao cup', 'Carabao Cup'),
-        ('copa del rey', 'Copa del Rey'),
-        ('dfb pokal', 'DFB Pokal'),
     ]
 
     for pattern, name in competitions:
@@ -236,10 +189,405 @@ def extract_competition_from_text(text: str) -> Optional[str]:
     return None
 
 
-def scrape_news_source(source_key: str, config: Dict) -> List[Dict[str, Any]]:
-    """Scrape a news source for football content."""
-    content_items = []
+def scrape_bbc_sport(page: Page, timestamp: str) -> List[Dict]:
+    """Scrape BBC Sport football page."""
+    items = []
+
+    try:
+        page.goto("https://www.bbc.com/sport/football", wait_until="domcontentloaded", timeout=30000)
+        time.sleep(3)
+        dismiss_dialogs(page)
+
+        # Scroll to load content
+        for _ in range(2):
+            page.keyboard.press("End")
+            time.sleep(1)
+
+        articles = page.evaluate("""
+            () => {
+                const articles = [];
+                const seen = new Set();
+
+                // Find all promo links on BBC Sport
+                document.querySelectorAll('a[href*="/sport/football/"]').forEach(link => {
+                    const url = link.href;
+                    if (!url || seen.has(url)) return;
+                    if (url.includes('/live/') || url.includes('/av/')) return;
+                    if (!url.match(/\\/sport\\/football\\/\\d+/)) return;
+
+                    seen.add(url);
+
+                    // Get title from heading or link text
+                    let title = '';
+                    const heading = link.querySelector('h3, h2, span[class*="Headline"], p[class*="Headline"]');
+                    if (heading) title = heading.textContent.trim();
+                    if (!title) title = link.textContent.trim();
+
+                    // Get image
+                    let imageUrl = '';
+                    const container = link.closest('div, article, li');
+                    if (container) {
+                        const img = container.querySelector('img');
+                        if (img) imageUrl = img.src || img.getAttribute('data-src') || '';
+                    }
+
+                    // Clean up title
+                    title = title.replace(/\\s+/g, ' ').trim();
+
+                    if (title && title.length > 15 && title.length < 200) {
+                        articles.push({ url, title, imageUrl });
+                    }
+                });
+
+                return articles.slice(0, 15);
+            }
+        """)
+
+        for article in articles:
+            title = article.get('title', '')
+            text = title.lower()
+
+            if any(kw in text for kw in FOOTBALL_KEYWORDS):
+                items.append({
+                    'source': 'BBC Sport',
+                    'content_type': 'article',
+                    'title': title,
+                    'summary': '',
+                    'url': article['url'],
+                    'image_url': article.get('imageUrl', ''),
+                    'published_at': '',
+                    'scraped_at': timestamp,
+                    'engagement_score': 0,
+                    'comments_count': 0,
+                    'related_teams': json.dumps(extract_teams_from_text(title)),
+                    'related_competition': extract_competition_from_text(title)
+                })
+
+    except Exception as e:
+        print(f"      BBC Sport error: {e}", flush=True)
+
+    return items
+
+
+def scrape_sky_sports(page: Page, timestamp: str) -> List[Dict]:
+    """Scrape Sky Sports football news."""
+    items = []
+
+    try:
+        page.goto("https://www.skysports.com/football/news", wait_until="domcontentloaded", timeout=30000)
+        time.sleep(3)
+        dismiss_dialogs(page)
+
+        for _ in range(2):
+            page.keyboard.press("End")
+            time.sleep(1)
+
+        articles = page.evaluate("""
+            () => {
+                const articles = [];
+                const seen = new Set();
+
+                document.querySelectorAll('.news-list__item a, a[href*="/football/news/"]').forEach(link => {
+                    const url = link.href;
+                    if (!url || seen.has(url)) return;
+                    if (!url.includes('/football/')) return;
+
+                    seen.add(url);
+
+                    let title = '';
+                    const headline = link.querySelector('.news-list__headline, h3, h4');
+                    if (headline) title = headline.textContent.trim();
+                    if (!title) title = link.textContent.trim();
+
+                    // Get image
+                    let imageUrl = '';
+                    const container = link.closest('.news-list__item, article, div');
+                    if (container) {
+                        const img = container.querySelector('img');
+                        if (img) imageUrl = img.src || img.getAttribute('data-src') || '';
+                    }
+
+                    title = title.replace(/\\s+/g, ' ').trim();
+
+                    if (title && title.length > 15 && title.length < 200) {
+                        articles.push({ url, title, imageUrl });
+                    }
+                });
+
+                return articles.slice(0, 15);
+            }
+        """)
+
+        for article in articles:
+            title = article.get('title', '')
+            text = title.lower()
+
+            if any(kw in text for kw in FOOTBALL_KEYWORDS):
+                items.append({
+                    'source': 'Sky Sports',
+                    'content_type': 'article',
+                    'title': title,
+                    'summary': '',
+                    'url': article['url'],
+                    'image_url': article.get('imageUrl', ''),
+                    'published_at': '',
+                    'scraped_at': timestamp,
+                    'engagement_score': 0,
+                    'comments_count': 0,
+                    'related_teams': json.dumps(extract_teams_from_text(title)),
+                    'related_competition': extract_competition_from_text(title)
+                })
+
+    except Exception as e:
+        print(f"      Sky Sports error: {e}", flush=True)
+
+    return items
+
+
+def scrape_espn(page: Page, timestamp: str) -> List[Dict]:
+    """Scrape ESPN FC."""
+    items = []
+
+    try:
+        page.goto("https://www.espn.com/soccer/", wait_until="domcontentloaded", timeout=30000)
+        time.sleep(3)
+        dismiss_dialogs(page)
+
+        for _ in range(2):
+            page.keyboard.press("End")
+            time.sleep(1)
+
+        articles = page.evaluate("""
+            () => {
+                const articles = [];
+                const seen = new Set();
+
+                document.querySelectorAll('a[href*="/soccer/story/"], a[href*="/soccer/recap/"]').forEach(link => {
+                    const url = link.href;
+                    if (!url || seen.has(url)) return;
+
+                    seen.add(url);
+
+                    let title = '';
+                    const headline = link.querySelector('h1, h2, h3, .contentItem__title');
+                    if (headline) title = headline.textContent.trim();
+                    if (!title) title = link.textContent.trim();
+
+                    // Get image
+                    let imageUrl = '';
+                    const container = link.closest('.contentItem, article, div');
+                    if (container) {
+                        const img = container.querySelector('img');
+                        if (img) imageUrl = img.src || img.getAttribute('data-src') || '';
+                    }
+
+                    title = title.replace(/\\s+/g, ' ').trim();
+
+                    if (title && title.length > 15 && title.length < 200) {
+                        articles.push({ url, title, imageUrl });
+                    }
+                });
+
+                return articles.slice(0, 15);
+            }
+        """)
+
+        for article in articles:
+            title = article.get('title', '')
+            text = title.lower()
+
+            if any(kw in text for kw in FOOTBALL_KEYWORDS):
+                items.append({
+                    'source': 'ESPN FC',
+                    'content_type': 'article',
+                    'title': title,
+                    'summary': '',
+                    'url': article['url'],
+                    'image_url': article.get('imageUrl', ''),
+                    'published_at': '',
+                    'scraped_at': timestamp,
+                    'engagement_score': 0,
+                    'comments_count': 0,
+                    'related_teams': json.dumps(extract_teams_from_text(title)),
+                    'related_competition': extract_competition_from_text(title)
+                })
+
+    except Exception as e:
+        print(f"      ESPN error: {e}", flush=True)
+
+    return items
+
+
+def scrape_guardian(page: Page, timestamp: str) -> List[Dict]:
+    """Scrape The Guardian football."""
+    items = []
+
+    try:
+        page.goto("https://www.theguardian.com/football", wait_until="domcontentloaded", timeout=30000)
+        time.sleep(3)
+        dismiss_dialogs(page)
+
+        for _ in range(2):
+            page.keyboard.press("End")
+            time.sleep(1)
+
+        articles = page.evaluate("""
+            () => {
+                const articles = [];
+                const seen = new Set();
+
+                document.querySelectorAll('a[href*="/football/"][href*="/20"]').forEach(link => {
+                    const url = link.href;
+                    if (!url || seen.has(url)) return;
+                    if (url.includes('/live/') || url.includes('/video/')) return;
+
+                    seen.add(url);
+
+                    let title = '';
+                    const headline = link.querySelector('h3, h2, span[class*="headline"]');
+                    if (headline) title = headline.textContent.trim();
+                    if (!title && link.getAttribute('aria-label')) title = link.getAttribute('aria-label');
+                    if (!title) title = link.textContent.trim();
+
+                    // Get image
+                    let imageUrl = '';
+                    const container = link.closest('.fc-item, article, li');
+                    if (container) {
+                        const img = container.querySelector('img');
+                        if (img) imageUrl = img.src || img.getAttribute('data-src') || '';
+                    }
+
+                    title = title.replace(/\\s+/g, ' ').trim();
+
+                    if (title && title.length > 15 && title.length < 250) {
+                        articles.push({ url, title, imageUrl });
+                    }
+                });
+
+                return articles.slice(0, 15);
+            }
+        """)
+
+        for article in articles:
+            title = article.get('title', '')
+            text = title.lower()
+
+            if any(kw in text for kw in FOOTBALL_KEYWORDS):
+                items.append({
+                    'source': 'The Guardian',
+                    'content_type': 'article',
+                    'title': title,
+                    'summary': '',
+                    'url': article['url'],
+                    'image_url': article.get('imageUrl', ''),
+                    'published_at': '',
+                    'scraped_at': timestamp,
+                    'engagement_score': 0,
+                    'comments_count': 0,
+                    'related_teams': json.dumps(extract_teams_from_text(title)),
+                    'related_competition': extract_competition_from_text(title)
+                })
+
+    except Exception as e:
+        print(f"      Guardian error: {e}", flush=True)
+
+    return items
+
+
+def scrape_reddit(page: Page, subreddit: str, source_name: str, timestamp: str) -> List[Dict]:
+    """Scrape Reddit using old.reddit.com for simpler HTML."""
+    items = []
+
+    try:
+        url = f"https://old.reddit.com/r/{subreddit}/"
+        page.goto(url, wait_until="domcontentloaded", timeout=30000)
+        time.sleep(3)
+
+        posts = page.evaluate("""
+            () => {
+                const posts = [];
+
+                document.querySelectorAll('.thing.link').forEach(post => {
+                    const titleEl = post.querySelector('a.title');
+                    if (!titleEl) return;
+
+                    const title = titleEl.textContent.trim();
+                    const url = titleEl.href;
+
+                    // Get score
+                    const scoreEl = post.querySelector('.score.unvoted');
+                    let score = 0;
+                    if (scoreEl) {
+                        const scoreText = scoreEl.getAttribute('title') || scoreEl.textContent;
+                        score = parseInt(scoreText) || 0;
+                    }
+
+                    // Get comments
+                    const commentsEl = post.querySelector('.comments');
+                    let comments = 0;
+                    if (commentsEl) {
+                        const match = commentsEl.textContent.match(/\\d+/);
+                        if (match) comments = parseInt(match[0]) || 0;
+                    }
+
+                    // Get thumbnail/image
+                    let imageUrl = '';
+                    const thumb = post.querySelector('.thumbnail img, a.thumbnail');
+                    if (thumb) {
+                        if (thumb.tagName === 'IMG') {
+                            imageUrl = thumb.src || '';
+                        } else {
+                            const img = thumb.querySelector('img');
+                            if (img) imageUrl = img.src || '';
+                        }
+                    }
+                    // Also check for direct image links
+                    if (!imageUrl && post.classList.contains('link')) {
+                        const directLink = post.getAttribute('data-url');
+                        if (directLink && (directLink.includes('.jpg') || directLink.includes('.png') || directLink.includes('i.redd.it'))) {
+                            imageUrl = directLink;
+                        }
+                    }
+
+                    if (title && url) {
+                        posts.push({ title, url, score, comments, imageUrl });
+                    }
+                });
+
+                return posts.slice(0, 20);
+            }
+        """)
+
+        for post in posts:
+            title = post.get('title', '')
+            if not title or len(title) < 10:
+                continue
+
+            items.append({
+                'source': source_name,
+                'content_type': 'social',
+                'title': title[:300],
+                'summary': '',
+                'url': post['url'],
+                'image_url': post.get('imageUrl', ''),
+                'published_at': '',
+                'scraped_at': timestamp,
+                'engagement_score': post.get('score', 0),
+                'comments_count': post.get('comments', 0),
+                'related_teams': json.dumps(extract_teams_from_text(title)),
+                'related_competition': extract_competition_from_text(title)
+            })
+
+    except Exception as e:
+        print(f"      Reddit {subreddit} error: {e}", flush=True)
+
+    return items
+
+
+def scrape_source(source_key: str, config: Dict) -> List[Dict]:
+    """Scrape a single source."""
     timestamp = datetime.utcnow().isoformat() + 'Z'
+    items = []
 
     print(f"    Scraping {config['name']}...", flush=True)
 
@@ -252,33 +600,24 @@ def scrape_news_source(source_key: str, config: Dict) -> List[Dict[str, Any]]:
 
             context = browser.new_context(
                 viewport={"width": 1920, "height": 1080},
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )
 
             page = context.new_page()
             page.set_default_timeout(30000)
 
-            try:
-                page.goto(config['url'], wait_until="domcontentloaded", timeout=30000)
-            except Exception as e:
-                print(f"      Navigation error: {e}", flush=True)
-                browser.close()
-                return content_items
-
-            time.sleep(3)
-            dismiss_dialogs(page)
-            time.sleep(1)
-
-            # Scroll to load more content
-            for _ in range(2):
-                page.keyboard.press("End")
-                time.sleep(1)
-
-            # Extract articles based on source type
-            if source_key in ['reddit_soccer', 'reddit_betting']:
-                content_items = scrape_reddit(page, config, source_key, timestamp)
-            else:
-                content_items = scrape_news_articles(page, config, source_key, timestamp)
+            if source_key == 'bbc_sport':
+                items = scrape_bbc_sport(page, timestamp)
+            elif source_key == 'sky_sports':
+                items = scrape_sky_sports(page, timestamp)
+            elif source_key == 'espn_fc':
+                items = scrape_espn(page, timestamp)
+            elif source_key == 'guardian':
+                items = scrape_guardian(page, timestamp)
+            elif source_key == 'reddit_soccer':
+                items = scrape_reddit(page, 'soccer', config['name'], timestamp)
+            elif source_key == 'reddit_betting':
+                items = scrape_reddit(page, 'SoccerBetting', config['name'], timestamp)
 
             browser.close()
 
@@ -287,172 +626,7 @@ def scrape_news_source(source_key: str, config: Dict) -> List[Dict[str, Any]]:
         import traceback
         traceback.print_exc()
 
-    print(f"      Found {len(content_items)} items from {config['name']}", flush=True)
-    return content_items
-
-
-def scrape_news_articles(page: Page, config: Dict, source_key: str, timestamp: str) -> List[Dict]:
-    """Scrape news articles from a page."""
-    items = []
-    selectors = config['selectors']
-
-    articles = page.evaluate(f"""
-        () => {{
-            const articles = [];
-            const seen = new Set();
-
-            // Find article links
-            const links = document.querySelectorAll('{selectors["articles"]}');
-
-            links.forEach(link => {{
-                const url = link.href || link.getAttribute('href');
-                if (!url || seen.has(url) || !url.startsWith('http')) return;
-                if (url.includes('/live/') || url.includes('/video/')) return;
-
-                seen.add(url);
-
-                // Find title
-                let title = '';
-                const titleEl = link.querySelector('{selectors["title"]}') ||
-                               link.closest('article')?.querySelector('{selectors["title"]}');
-                if (titleEl) title = titleEl.textContent.trim();
-                if (!title) title = link.textContent.trim();
-
-                // Find summary
-                let summary = '';
-                const summaryEl = link.querySelector('{selectors.get("summary", "p")}') ||
-                                 link.closest('article')?.querySelector('{selectors.get("summary", "p")}');
-                if (summaryEl) summary = summaryEl.textContent.trim();
-
-                // Find time
-                let publishedAt = '';
-                const timeEl = link.querySelector('{selectors.get("time", "time")}') ||
-                              link.closest('article')?.querySelector('{selectors.get("time", "time")}');
-                if (timeEl) publishedAt = timeEl.getAttribute('datetime') || timeEl.textContent.trim();
-
-                // Find image
-                let imageUrl = '';
-                const imgEl = link.querySelector('img') || link.closest('article')?.querySelector('img');
-                if (imgEl) imageUrl = imgEl.src || imgEl.getAttribute('data-src') || '';
-
-                if (title && title.length > 10 && title.length < 300) {{
-                    articles.push({{
-                        url,
-                        title: title.substring(0, 300),
-                        summary: summary.substring(0, 500),
-                        publishedAt,
-                        imageUrl
-                    }});
-                }}
-            }});
-
-            return articles.slice(0, 20);
-        }}
-    """)
-
-    for article in articles:
-        # Check if football-related
-        text = (article.get('title', '') + ' ' + article.get('summary', '')).lower()
-        is_football = any(kw in text for kw in FOOTBALL_KEYWORDS)
-
-        if not is_football:
-            continue
-
-        items.append({
-            'source': config['name'],
-            'content_type': 'article',
-            'title': article['title'],
-            'summary': article.get('summary', ''),
-            'url': article['url'],
-            'image_url': article.get('imageUrl', ''),
-            'published_at': article.get('publishedAt', ''),
-            'scraped_at': timestamp,
-            'engagement_score': 0,
-            'comments_count': 0,
-            'related_teams': json.dumps(extract_teams_from_text(text)),
-            'related_competition': extract_competition_from_text(text)
-        })
-
-    return items
-
-
-def scrape_reddit(page: Page, config: Dict, source_key: str, timestamp: str) -> List[Dict]:
-    """Scrape Reddit posts."""
-    items = []
-
-    posts = page.evaluate("""
-        () => {
-            const posts = [];
-            const seen = new Set();
-
-            // Try new Reddit format
-            document.querySelectorAll('shreddit-post, [data-testid="post-container"], article').forEach(post => {
-                let title = '';
-                let url = '';
-                let score = 0;
-                let comments = 0;
-
-                // Get title
-                const titleEl = post.querySelector('[slot="title"], h3, [data-testid="post-title"]');
-                if (titleEl) title = titleEl.textContent.trim();
-
-                // Get URL
-                const linkEl = post.querySelector('a[href*="/comments/"]');
-                if (linkEl) url = linkEl.href;
-                if (!url) {
-                    const permalink = post.getAttribute('permalink');
-                    if (permalink) url = 'https://www.reddit.com' + permalink;
-                }
-
-                // Get score
-                const scoreAttr = post.getAttribute('score');
-                if (scoreAttr) score = parseInt(scoreAttr) || 0;
-                const scoreEl = post.querySelector('[score], .score');
-                if (scoreEl) {
-                    const scoreText = scoreEl.textContent || scoreEl.getAttribute('score');
-                    score = parseInt(scoreText) || score;
-                }
-
-                // Get comments
-                const commentsEl = post.querySelector('[slot="commentCount"], .comments');
-                if (commentsEl) {
-                    const commentsText = commentsEl.textContent.replace(/[^0-9]/g, '');
-                    comments = parseInt(commentsText) || 0;
-                }
-
-                if (title && url && !seen.has(url)) {
-                    seen.add(url);
-                    posts.push({ title, url, score, comments });
-                }
-            });
-
-            return posts.slice(0, 25);
-        }
-    """)
-
-    for post in posts:
-        title = post.get('title', '')
-        if not title or len(title) < 10:
-            continue
-
-        # Check if football-related (Reddit posts should be from football subreddits)
-        text = title.lower()
-
-        items.append({
-            'source': config['name'],
-            'content_type': 'social',
-            'title': title[:300],
-            'summary': '',
-            'url': post['url'],
-            'image_url': '',
-            'published_at': '',
-            'scraped_at': timestamp,
-            'engagement_score': post.get('score', 0),
-            'comments_count': post.get('comments', 0),
-            'related_teams': json.dumps(extract_teams_from_text(text)),
-            'related_competition': extract_competition_from_text(text)
-        })
-
+    print(f"      Found {len(items)} items from {config['name']}", flush=True)
     return items
 
 
@@ -464,12 +638,10 @@ def save_content_to_db(content_items: List[Dict]) -> int:
 
     for item in content_items:
         try:
-            # Check if URL already exists
             cursor.execute('SELECT id FROM scraped_content WHERE url = ?', (item['url'],))
             existing = cursor.fetchone()
 
             if existing:
-                # Update existing
                 cursor.execute('''
                     UPDATE scraped_content
                     SET title = ?, summary = ?, scraped_at = ?, engagement_score = ?,
@@ -486,7 +658,6 @@ def save_content_to_db(content_items: List[Dict]) -> int:
                     existing[0]
                 ))
             else:
-                # Insert new
                 cursor.execute('''
                     INSERT INTO scraped_content
                     (source, content_type, title, summary, url, image_url,
@@ -521,21 +692,17 @@ def run_content_scrape(max_workers: int = 3) -> Dict[str, Any]:
     """Run content scrape with multiple workers."""
     print(f"[{datetime.utcnow().isoformat()}] Starting content scrape with {max_workers} workers...", flush=True)
 
-    # Initialize database table
     init_content_db()
 
     all_content = []
     source_counts = {}
 
-    # Use ThreadPoolExecutor for parallel scraping
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Submit all scraping tasks
         future_to_source = {
-            executor.submit(scrape_news_source, source_key, config): source_key
+            executor.submit(scrape_source, source_key, config): source_key
             for source_key, config in CONTENT_SOURCES.items()
         }
 
-        # Collect results as they complete
         for future in as_completed(future_to_source):
             source_key = future_to_source[future]
             try:
@@ -546,25 +713,22 @@ def run_content_scrape(max_workers: int = 3) -> Dict[str, Any]:
                 print(f"Error with {source_key}: {e}", flush=True)
                 source_counts[source_key] = 0
 
-    # Save all content to database
     saved_count = save_content_to_db(all_content)
 
-    # Clean up old content (keep last 7 days)
+    # Clean up old content
     try:
         conn = sqlite3.connect(DATABASE)
         cursor = conn.cursor()
-        cursor.execute('''
-            DELETE FROM scraped_content
-            WHERE scraped_at < datetime('now', '-7 days')
-        ''')
+        cursor.execute("DELETE FROM scraped_content WHERE scraped_at < datetime('now', '-7 days')")
         deleted = cursor.rowcount
         conn.commit()
         conn.close()
         print(f"Cleaned up {deleted} old content items", flush=True)
     except Exception as e:
-        print(f"Error cleaning up old content: {e}", flush=True)
+        print(f"Error cleaning up: {e}", flush=True)
 
     print(f"Content scrape complete. Total: {len(all_content)}, Saved: {saved_count}", flush=True)
+    print(f"Source breakdown: {source_counts}", flush=True)
 
     return {
         "total_scraped": len(all_content),
@@ -579,10 +743,7 @@ def get_content_feed(limit: int = 50, content_type: Optional[str] = None) -> Lis
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    query = '''
-        SELECT * FROM scraped_content
-        WHERE 1=1
-    '''
+    query = 'SELECT * FROM scraped_content WHERE 1=1'
     params = []
 
     if content_type and content_type != 'all':

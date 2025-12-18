@@ -285,6 +285,18 @@ function ContentCard({ item, formatTime, formatNumber, parseTeams }) {
         <span className="text-white/40 text-xs">{formatTime(item.scraped_at)}</span>
       </div>
 
+      {/* Image if available */}
+      {item.image_url && item.image_url.startsWith('http') && (
+        <div className="relative aspect-video bg-[#0a0a0a] overflow-hidden">
+          <img
+            src={item.image_url}
+            alt=""
+            className="w-full h-full object-cover"
+            onError={(e) => { e.target.style.display = 'none' }}
+          />
+        </div>
+      )}
+
       {/* Card Content */}
       <div className="p-4">
         <h3 className="text-white font-medium leading-tight mb-2">{item.title}</h3>
