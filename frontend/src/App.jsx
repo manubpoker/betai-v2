@@ -6,6 +6,7 @@ import AIBetFeed from './components/AIBetFeed'
 import SaferGamingAgent from './components/SaferGamingAgent'
 import PredictionMarket from './components/PredictionMarket'
 import ContentFeed from './components/ContentFeed'
+import SocialBetFeed from './components/SocialBetFeed'
 import { API_BASE } from './config'
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
   const [saferGamingOpen, setSaferGamingOpen] = useState(false)
   const [predictionMarketOpen, setPredictionMarketOpen] = useState(false)
   const [contentFeedOpen, setContentFeedOpen] = useState(false)
+  const [socialFeedOpen, setSocialFeedOpen] = useState(false)
   const [betFeedRefresh, setBetFeedRefresh] = useState(0)
   const [balance, setBalance] = useState(1000.00)
 
@@ -117,6 +119,15 @@ function App() {
                   </svg>
                   Content
                 </button>
+                <button
+                  onClick={() => setSocialFeedOpen(true)}
+                  className="px-4 py-2 text-white/80 hover:text-white font-medium flex items-center gap-2 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+                  </svg>
+                  Social Feed
+                </button>
               </div>
 
               {/* AI Status Indicator */}
@@ -172,6 +183,12 @@ function App() {
         <ContentFeed
           isOpen={contentFeedOpen}
           onClose={() => setContentFeedOpen(false)}
+        />
+
+        {/* Social Bet Feed */}
+        <SocialBetFeed
+          isOpen={socialFeedOpen}
+          onClose={() => setSocialFeedOpen(false)}
         />
       </div>
     </Router>
