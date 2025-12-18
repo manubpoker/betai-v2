@@ -4,6 +4,7 @@ Real-time Betfair scraping with Claude AI chat
 """
 
 import os
+import json
 import sqlite3
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, request, g
@@ -212,6 +213,54 @@ def init_db():
             odds REAL NOT NULL,
             stake REAL NOT NULL,
             reason TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    ''')
+
+    # safer_gaming_settings table - stores user's responsible gambling limits
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS safer_gaming_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            setting_type TEXT NOT NULL,
+            value REAL,
+            period TEXT,
+            enabled INTEGER DEFAULT 1,
+            starts_at TEXT,
+            ends_at TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    ''')
+
+    # safer_gaming_sessions table - tracks gambling sessions for reality checks
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS safer_gaming_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            started_at TEXT NOT NULL,
+            ended_at TEXT,
+            total_bets INTEGER DEFAULT 0,
+            total_staked REAL DEFAULT 0,
+            total_won REAL DEFAULT 0,
+            total_lost REAL DEFAULT 0,
+            reality_checks_shown INTEGER DEFAULT 0
+        )
+    ''')
+
+    # safer_gaming_conversations table - stores safer gaming agent chat history
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS safer_gaming_conversations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL
+        )
+    ''')
+
+    # safer_gaming_messages table - stores messages with the safer gaming agent
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS safer_gaming_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            conversation_id INTEGER REFERENCES safer_gaming_conversations(id),
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
             created_at TEXT NOT NULL
         )
     ''')
@@ -1680,6 +1729,357 @@ def get_match_intelligence_for_event(event_id):
         "event_id": event_id,
         "logs": result,
         "count": len(result)
+    })
+
+
+# ============================================================
+# SAFER GAMING ENDPOINTS
+# ============================================================
+
+@app.route('/api/safer-gaming/settings', methods=['GET'])
+def get_safer_gaming_settings():
+    """Get all safer gaming settings."""
+    db = get_db()
+    settings = db.execute('SELECT * FROM safer_gaming_settings ORDER BY setting_type').fetchall()
+    return jsonify({
+        "settings": [dict(s) for s in settings]
+    })
+
+
+@app.route('/api/safer-gaming/settings', methods=['POST'])
+def update_safer_gaming_setting():
+    """Create or update a safer gaming setting."""
+    data = request.json
+    setting_type = data.get('setting_type')  # deposit_limit, loss_limit, timeout, reality_check
+    value = data.get('value')
+    period = data.get('period')  # daily, weekly, monthly, or duration in hours
+    enabled = data.get('enabled', True)
+
+    if not setting_type:
+        return jsonify({"error": "setting_type is required"}), 400
+
+    db = get_db()
+    now = datetime.utcnow().isoformat() + 'Z'
+
+    # Check if setting exists
+    existing = db.execute(
+        'SELECT id FROM safer_gaming_settings WHERE setting_type = ?',
+        (setting_type,)
+    ).fetchone()
+
+    if existing:
+        db.execute('''
+            UPDATE safer_gaming_settings
+            SET value = ?, period = ?, enabled = ?, updated_at = ?
+            WHERE setting_type = ?
+        ''', (value, period, 1 if enabled else 0, now, setting_type))
+    else:
+        db.execute('''
+            INSERT INTO safer_gaming_settings (setting_type, value, period, enabled, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (setting_type, value, period, 1 if enabled else 0, now, now))
+
+    db.commit()
+
+    return jsonify({
+        "success": True,
+        "setting_type": setting_type,
+        "value": value,
+        "period": period,
+        "enabled": enabled
+    })
+
+
+@app.route('/api/safer-gaming/timeout', methods=['POST'])
+def set_timeout():
+    """Set a timeout period (24h, 48h, 7d, 30d)."""
+    data = request.json
+    duration_hours = data.get('duration_hours', 24)
+
+    db = get_db()
+    now = datetime.utcnow()
+    ends_at = now + timedelta(hours=duration_hours)
+
+    db.execute('''
+        INSERT INTO safer_gaming_settings (setting_type, value, period, enabled, starts_at, ends_at, created_at, updated_at)
+        VALUES ('timeout', ?, 'hours', 1, ?, ?, ?, ?)
+    ''', (duration_hours, now.isoformat() + 'Z', ends_at.isoformat() + 'Z', now.isoformat() + 'Z', now.isoformat() + 'Z'))
+    db.commit()
+
+    return jsonify({
+        "success": True,
+        "timeout_until": ends_at.isoformat() + 'Z',
+        "duration_hours": duration_hours
+    })
+
+
+@app.route('/api/safer-gaming/timeout/status', methods=['GET'])
+def get_timeout_status():
+    """Check if user is currently in timeout."""
+    db = get_db()
+    now = datetime.utcnow().isoformat() + 'Z'
+
+    active_timeout = db.execute('''
+        SELECT * FROM safer_gaming_settings
+        WHERE setting_type = 'timeout' AND enabled = 1 AND ends_at > ?
+        ORDER BY ends_at DESC LIMIT 1
+    ''', (now,)).fetchone()
+
+    if active_timeout:
+        return jsonify({
+            "in_timeout": True,
+            "ends_at": active_timeout['ends_at'],
+            "started_at": active_timeout['starts_at']
+        })
+
+    return jsonify({"in_timeout": False})
+
+
+@app.route('/api/safer-gaming/activity', methods=['GET'])
+def get_player_activity():
+    """Get comprehensive player activity data for the safer gaming agent."""
+    db = get_db()
+    now = datetime.utcnow()
+
+    # Get balance
+    balance_row = db.execute('SELECT balance FROM user_balance ORDER BY id DESC LIMIT 1').fetchone()
+    current_balance = balance_row['balance'] if balance_row else 1000.00
+
+    # Get all bets
+    all_bets = db.execute('''
+        SELECT b.*, e.event_name, e.sport
+        FROM user_bets b
+        LEFT JOIN scraped_events e ON b.event_id = e.id
+        ORDER BY b.created_at DESC
+    ''').fetchall()
+
+    # Calculate stats
+    total_bets = len(all_bets)
+    total_staked = sum(b['stake'] for b in all_bets)
+    won_bets = [b for b in all_bets if b['result'] == 'won']
+    lost_bets = [b for b in all_bets if b['result'] == 'lost']
+    open_bets = [b for b in all_bets if b['status'] == 'open']
+
+    total_won = sum(b['profit_loss'] for b in won_bets if b['profit_loss'])
+    total_lost = sum(abs(b['profit_loss']) for b in lost_bets if b['profit_loss'])
+    net_profit_loss = total_won - total_lost
+
+    # Time-based analysis
+    today = now.date().isoformat()
+    week_ago = (now - timedelta(days=7)).isoformat()
+    month_ago = (now - timedelta(days=30)).isoformat()
+
+    bets_today = [b for b in all_bets if b['created_at'] and b['created_at'][:10] == today]
+    bets_this_week = [b for b in all_bets if b['created_at'] and b['created_at'] >= week_ago]
+    bets_this_month = [b for b in all_bets if b['created_at'] and b['created_at'] >= month_ago]
+
+    # Get safer gaming settings
+    settings = db.execute('SELECT * FROM safer_gaming_settings WHERE enabled = 1').fetchall()
+    settings_dict = {s['setting_type']: dict(s) for s in settings}
+
+    # Check limits
+    deposit_limit = settings_dict.get('deposit_limit', {}).get('value')
+    loss_limit = settings_dict.get('loss_limit', {}).get('value')
+
+    # Get recent transactions
+    recent_transactions = db.execute('''
+        SELECT * FROM balance_transactions
+        ORDER BY created_at DESC LIMIT 20
+    ''').fetchall()
+
+    # Calculate deposits today/week/month
+    deposits_today = sum(t['amount'] for t in recent_transactions
+                        if t['transaction_type'] == 'deposit' and t['created_at'][:10] == today)
+    deposits_this_week = sum(t['amount'] for t in recent_transactions
+                            if t['transaction_type'] == 'deposit' and t['created_at'] >= week_ago)
+
+    return jsonify({
+        "current_balance": current_balance,
+        "starting_balance": 1000.00,
+        "total_bets": total_bets,
+        "open_bets": len(open_bets),
+        "total_staked": total_staked,
+        "total_won": total_won,
+        "total_lost": total_lost,
+        "net_profit_loss": net_profit_loss,
+        "win_rate": (len(won_bets) / (len(won_bets) + len(lost_bets)) * 100) if (won_bets or lost_bets) else 0,
+        "activity": {
+            "today": {
+                "bets": len(bets_today),
+                "staked": sum(b['stake'] for b in bets_today),
+                "deposits": deposits_today
+            },
+            "this_week": {
+                "bets": len(bets_this_week),
+                "staked": sum(b['stake'] for b in bets_this_week),
+                "deposits": deposits_this_week
+            },
+            "this_month": {
+                "bets": len(bets_this_month),
+                "staked": sum(b['stake'] for b in bets_this_month)
+            }
+        },
+        "limits": {
+            "deposit_limit": deposit_limit,
+            "loss_limit": loss_limit,
+            "deposit_limit_period": settings_dict.get('deposit_limit', {}).get('period'),
+            "loss_limit_period": settings_dict.get('loss_limit', {}).get('period')
+        },
+        "recent_bets": [dict(b) for b in all_bets[:10]],
+        "recent_transactions": [dict(t) for t in recent_transactions[:10]]
+    })
+
+
+@app.route('/api/safer-gaming/chat', methods=['POST'])
+def safer_gaming_chat():
+    """Chat with the Safer Gaming Agent."""
+    import anthropic
+
+    data = request.json
+    message = data.get('message', '')
+    conversation_id = data.get('conversation_id')
+
+    if not message:
+        return jsonify({"error": "message is required"}), 400
+
+    db = get_db()
+    now = datetime.utcnow().isoformat() + 'Z'
+
+    # Create new conversation if needed
+    if not conversation_id:
+        cursor = db.execute(
+            'INSERT INTO safer_gaming_conversations (created_at) VALUES (?)',
+            (now,)
+        )
+        db.commit()
+        conversation_id = cursor.lastrowid
+
+    # Get conversation history
+    history = db.execute('''
+        SELECT role, content FROM safer_gaming_messages
+        WHERE conversation_id = ?
+        ORDER BY created_at ASC
+    ''', (conversation_id,)).fetchall()
+
+    # Get player activity for context
+    activity_response = get_player_activity()
+    activity_data = activity_response.get_json()
+
+    # Build messages for Claude
+    messages = [{"role": h['role'], "content": h['content']} for h in history]
+    messages.append({"role": "user", "content": message})
+
+    # Save user message
+    db.execute('''
+        INSERT INTO safer_gaming_messages (conversation_id, role, content, created_at)
+        VALUES (?, 'user', ?, ?)
+    ''', (conversation_id, message, now))
+    db.commit()
+
+    # System prompt for safer gaming agent
+    system_prompt = f"""You are a Safer Gaming Agent for BetAI, a responsible gambling assistant. Your role is to help users maintain healthy gambling habits and stay in control of their betting activity.
+
+**PLAYER ACTIVITY DATA:**
+{json.dumps(activity_data, indent=2)}
+
+**YOUR RESPONSIBILITIES:**
+
+1. **Monitor Activity**: Analyze the player's betting patterns, frequency, and amounts
+2. **Identify Risks**: Look for signs of problematic gambling (chasing losses, increasing stakes, frequent betting)
+3. **Provide Tools**: Help set up and manage responsible gambling tools:
+   - Deposit Limits (daily/weekly/monthly)
+   - Loss Limits
+   - Timeout (24h, 48h, 7 days, 30 days)
+   - Reality Checks (session reminders)
+   - Self-Exclusion options
+
+4. **Supportive Conversation**: Be empathetic, non-judgmental, and supportive
+5. **Practical Advice**: Offer concrete strategies for responsible gambling
+
+**AVAILABLE ACTIONS:**
+When the user wants to set limits or take breaks, guide them through the process and confirm their choices.
+
+**TONE:**
+- Compassionate and understanding
+- Non-preachy - respect user autonomy
+- Factual about their activity data
+- Encouraging positive habits
+
+**IMPORTANT:**
+- Never encourage gambling or provide betting advice
+- If user shows signs of distress or addiction, provide helpline information:
+  - GamCare: 0808 8020 133 (UK)
+  - BeGambleAware: www.begambleaware.org
+  - National Gambling Helpline: 1-800-522-4700 (US)
+
+Start by acknowledging the user's message and providing relevant insights from their activity data."""
+
+    try:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            return jsonify({"error": "AI service unavailable"}), 503
+
+        client = anthropic.Anthropic(api_key=api_key)
+
+        response = client.messages.create(
+            model="claude-opus-4-5-20251101",
+            max_tokens=2048,
+            system=system_prompt,
+            messages=messages
+        )
+
+        assistant_response = ""
+        for block in response.content:
+            if hasattr(block, 'text'):
+                assistant_response += block.text
+
+        # Save assistant response
+        db.execute('''
+            INSERT INTO safer_gaming_messages (conversation_id, role, content, created_at)
+            VALUES (?, 'assistant', ?, ?)
+        ''', (conversation_id, assistant_response, datetime.utcnow().isoformat() + 'Z'))
+        db.commit()
+
+        return jsonify({
+            "response": assistant_response,
+            "conversation_id": conversation_id
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/safer-gaming/conversations', methods=['GET'])
+def get_safer_gaming_conversations():
+    """Get all safer gaming conversations."""
+    db = get_db()
+    conversations = db.execute('''
+        SELECT c.id, c.created_at,
+               (SELECT content FROM safer_gaming_messages WHERE conversation_id = c.id ORDER BY created_at ASC LIMIT 1) as first_message
+        FROM safer_gaming_conversations c
+        ORDER BY c.created_at DESC
+        LIMIT 20
+    ''').fetchall()
+
+    return jsonify({
+        "conversations": [dict(c) for c in conversations]
+    })
+
+
+@app.route('/api/safer-gaming/conversations/<int:conversation_id>', methods=['GET'])
+def get_safer_gaming_conversation(conversation_id):
+    """Get a specific safer gaming conversation with all messages."""
+    db = get_db()
+    messages = db.execute('''
+        SELECT role, content, created_at
+        FROM safer_gaming_messages
+        WHERE conversation_id = ?
+        ORDER BY created_at ASC
+    ''', (conversation_id,)).fetchall()
+
+    return jsonify({
+        "conversation_id": conversation_id,
+        "messages": [dict(m) for m in messages]
     })
 
 
